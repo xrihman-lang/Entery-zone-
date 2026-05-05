@@ -32,7 +32,13 @@ export default function LoginPage({ onLoginSuccess, onSkipLogin }: LoginPageProp
       onLoginSuccess();
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message || 'Failed to login with Google');
+      let errorMessage = err.message || 'Failed to login with Google';
+      if (err.code === 'auth/configuration-not-found' || errorMessage.includes('auth/configuration-not-found')) {
+        errorMessage = 'Google Sign-In is not enabled. Please go to your Firebase Console -> Authentication -> Sign-in method -> Enable "Google".';
+      } else if (err.code === 'auth/unauthorized-domain' || errorMessage.includes('auth/unauthorized-domain')) {
+        errorMessage = `Please add this domain to Firebase Authorized Domains:\n\n1. Go to Firebase Console\n2. Click Authentication -> Settings -> Authorized domains\n3. Add domain: ${window.location.hostname}`;
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -51,6 +57,12 @@ export default function LoginPage({ onLoginSuccess, onSkipLogin }: LoginPageProp
         
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Daily Daybook</h1>
         <p className="text-gray-500 mb-8">Secure your records in the cloud to access them from any computer.</p>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded text-left whitespace-pre-wrap">
+            {error}
+          </div>
+        )}
 
         {isFirebaseMissing && (
           <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 text-amber-800 text-sm rounded text-left">

@@ -1,8 +1,8 @@
 {
-  "apiKey": "MISSING",
-  "authDomain": "MISSING",
-  "projectId": "MISSING",
-  "storageBucket": "MISSING",
-  "messagingSenderId": "MISSING",
-  "appId": "MISSING"
+  "apiKey": "AIzaSyBLEXNYTdSiIkiAu8UrwSxh1gvcGGy9b4k",
+  "authDomain": "mydaybook-e4d6d.firebaseapp.com",
+  "projectId": "mydaybook-e4d6d",
+  "storageBucket": "mydaybook-e4d6d.firebasestorage.app",
+  "messagingSenderId": "597929140382",
+  "appId": "1:597929140382:web:fcb1cd8f2e7d335fc15b8f"
 }
