@@ -4,8 +4,61 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Printer, Trash2, Save, Download, Pencil, X } from 'lucide-react';
+import { Plus, Printer, Trash2, Save, Download, Pencil, X, LogOut, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { 
+  onAuthStateChanged, 
+  signOut, 
+  User as FirebaseUser 
+} from 'firebase/auth';
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  serverTimestamp,
+  orderBy,
+  setDoc
+} from 'firebase/firestore';
+import { getFirebase } from './lib/firebase';
+import LoginPage from './components/LoginPage';
+
+// --- Error Handling Utility ---
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: any;
+}
+
+async function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const { auth } = await getFirebase();
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+// -----------------------------
 
 interface Entry {
   id: string;
@@ -18,6 +71,9 @@ interface Entry {
 }
 
 export default function App() {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [localMode, setLocalMode] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [activeTab, setActiveTab] = useState<'standard' | 'vrs'>('standard');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -33,22 +89,68 @@ export default function App() {
     receivedAmount: '',
   });
 
-  // Load from LocalStorage
+  // Handle Auth State
   useEffect(() => {
-    const saved = localStorage.getItem('daybook_entries');
-    if (saved) {
+    let unsubscribe: any;
+    const setupAuth = async () => {
       try {
-        setEntries(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to load entries', e);
+        const { auth } = await getFirebase();
+        if (!auth) {
+          console.warn("Auth not available - running in local mode");
+          setAuthLoading(false);
+          // Load local entries if no cloud user
+          const saved = localStorage.getItem('daybook_entries_local');
+          if (saved) setEntries(JSON.parse(saved));
+          return;
+        }
+        unsubscribe = onAuthStateChanged(auth, (u) => {
+          setUser(u);
+          setAuthLoading(false);
+        });
+      } catch (err) {
+        console.error("Auth setup error:", err);
+        setAuthLoading(false);
       }
-    }
+    };
+    setupAuth();
+    return () => unsubscribe && unsubscribe();
   }, []);
 
-  // Save to LocalStorage
+  // Sync with Firestore or LocalStorage
   useEffect(() => {
-    localStorage.setItem('daybook_entries', JSON.stringify(entries));
-  }, [entries]);
+    if (!user) {
+      // Logic for Guest / Local Mode
+      if (!authLoading) {
+        localStorage.setItem('daybook_entries_local', JSON.stringify(entries));
+      }
+      return;
+    }
+
+    let unsubscribe: any;
+    const syncData = async () => {
+      const { db } = await getFirebase();
+      if (!db) return;
+
+      const q = query(
+        collection(db, 'entries'),
+        where('userId', '==', user.uid),
+        orderBy('date', 'desc')
+      );
+
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const docs = snapshot.docs.map(doc => ({
+          ...doc.data(),
+          id: doc.id,
+        })) as Entry[];
+        setEntries(docs);
+      }, (err) => {
+        handleFirestoreError(err, OperationType.LIST, 'entries');
+      });
+    };
+
+    syncData();
+    return () => unsubscribe && unsubscribe();
+  }, [user, entries, authLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -58,30 +160,15 @@ export default function App() {
     }));
   };
 
-  const handleAddEntry = (e: React.FormEvent) => {
+  const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.customerName || !formData.totalAmount) return;
 
     const total = parseFloat(formData.totalAmount);
     const received = parseFloat(formData.receivedAmount || '0');
     
-    if (editingId) {
-      setEntries(prev => prev.map(entry => {
-        if (entry.id === editingId) {
-          return {
-            ...entry,
-            date: formData.date,
-            customerName: formData.customerName,
-            type: formData.type,
-            totalAmount: total,
-            receivedAmount: received,
-            pendingAmount: total - received,
-          };
-        }
-        return entry;
-      }));
-      setEditingId(null);
-    } else {
+    // IF NOT LOGGED IN / NO DB - USE LOCAL
+    if (!user) {
       const newEntry: Entry = {
         id: crypto.randomUUID(),
         date: formData.date,
@@ -91,21 +178,78 @@ export default function App() {
         receivedAmount: received,
         pendingAmount: total - received,
       };
-
-      setEntries(prev => [...prev, newEntry]);
       
-      // Auto-switch tab if added to the other one
-      if (formData.type === 'V' && activeTab === 'standard') setActiveTab('vrs');
-      if (formData.type !== 'V' && activeTab === 'vrs') setActiveTab('standard');
+      if (editingId) {
+        setEntries(prev => prev.map(e => e.id === editingId ? newEntry : e));
+        setEditingId(null);
+      } else {
+        setEntries(prev => [newEntry, ...prev]);
+        // Auto-switch tab if added to the other one
+        if (formData.type === 'V' && activeTab === 'standard') setActiveTab('vrs');
+        if (formData.type !== 'V' && activeTab === 'vrs') setActiveTab('standard');
+      }
+
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        customerName: '',
+        type: formData.type,
+        totalAmount: '',
+        receivedAmount: '',
+      });
+      return;
     }
 
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      customerName: '',
-      type: formData.type,
-      totalAmount: '',
-      receivedAmount: '',
-    });
+    try {
+      const { db } = await getFirebase();
+      if (!db) throw new Error('Database not connected');
+
+      if (editingId) {
+        const entryRef = doc(db, 'entries', editingId);
+        await updateDoc(entryRef, {
+          date: formData.date,
+          customerName: formData.customerName,
+          type: formData.type,
+          totalAmount: total,
+          receivedAmount: received,
+          pendingAmount: total - received,
+          updatedAt: serverTimestamp(),
+        }).catch(err => handleFirestoreError(err, OperationType.UPDATE, `entries/${editingId}`));
+        
+        setEditingId(null);
+      } else {
+        const entryId = crypto.randomUUID();
+        const entryData = {
+          id: entryId,
+          date: formData.date,
+          customerName: formData.customerName,
+          type: formData.type,
+          totalAmount: total,
+          receivedAmount: received,
+          pendingAmount: total - received,
+          userId: user.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        // Use setDoc with ID to keep it consistent
+        await setDoc(doc(db, 'entries', entryId), entryData)
+          .catch(err => handleFirestoreError(err, OperationType.CREATE, `entries/${entryId}`));
+        
+        // Auto-switch tab if added to the other one
+        if (formData.type === 'V' && activeTab === 'standard') setActiveTab('vrs');
+        if (formData.type !== 'V' && activeTab === 'vrs') setActiveTab('standard');
+      }
+
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        customerName: '',
+        type: formData.type,
+        totalAmount: '',
+        receivedAmount: '',
+      });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const startEdit = (entry: Entry) => {
@@ -135,8 +279,19 @@ export default function App() {
     });
   };
 
-  const deleteEntry = (id: string) => {
-    setEntries(prev => prev.filter(entry => entry.id !== id));
+  const deleteEntry = async (id: string) => {
+    if (!user) {
+      setEntries(prev => prev.filter(e => e.id !== id));
+      return;
+    }
+    try {
+      const { db } = await getFirebase();
+      if (!db) return;
+      await deleteDoc(doc(db, 'entries', id))
+        .catch(err => handleFirestoreError(err, OperationType.DELETE, `entries/${id}`));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // Filter Logic
@@ -168,24 +323,73 @@ export default function App() {
     setFilterToDate('');
   };
 
+  const handleSignOut = async () => {
+    const { auth } = await getFirebase();
+    if (auth) signOut(auth);
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-500 font-medium">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user && !localMode) {
+    return <LoginPage onLoginSuccess={() => {}} onSkipLogin={() => setLocalMode(true)} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
       <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden print:shadow-none print:m-0">
         
         {/* Header */}
         <header className="bg-blue-600 text-white p-6 flex flex-col md:flex-row justify-between items-center gap-4 print:bg-white print:text-black print:border-b-2 print:border-blue-600">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Daily Daybook</h1>
-            <p className="text-blue-100 print:hidden text-sm mt-1">Manage your daily transactions and balances</p>
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-3 rounded-xl print:hidden">
+              <User size={24} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Daily Daybook</h1>
+              <p className="text-blue-100 print:hidden text-sm mt-1">
+                {user ? `Welcome, ${user.displayName || user.email}` : 'Guest Mode (Local Only)'}
+              </p>
+              {!user && (
+                <div className="mt-2 inline-flex items-center gap-1 bg-amber-500/30 text-amber-100 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border border-amber-500/50 print:hidden">
+                  <X size={10} /> Not Syncing
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex gap-2 print:hidden">
             <button 
               onClick={handlePrint}
-              className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-md font-medium hover:bg-blue-50 transition-colors shadow-sm"
+              className="flex items-center gap-2 bg-white/10 text-white border border-white/20 px-4 py-2 rounded-md font-medium hover:bg-white/20 transition-colors shadow-sm"
             >
               <Printer size={18} />
-              Print / Save PDF
+              Print
             </button>
+            {user ? (
+              <button 
+                onClick={handleSignOut}
+                className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-md font-medium hover:bg-blue-50 transition-colors shadow-sm"
+              >
+                <LogOut size={18} />
+                Sign Out
+              </button>
+            ) : (
+              <button 
+                onClick={() => setLocalMode(false)}
+                className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-md font-medium hover:bg-blue-50 transition-colors shadow-sm"
+              >
+                <User size={18} />
+                Login / Sync
+              </button>
+            )}
           </div>
         </header>
 
@@ -503,7 +707,7 @@ export default function App() {
       </div>
 
       <footer className="max-w-6xl mx-auto mt-8 text-center text-gray-400 text-sm print:hidden">
-        <p>&copy; {new Date().getFullYear()} Daily Daybook. All records are saved locally in your browser.</p>
+        <p>&copy; {new Date().getFullYear()} Daily Daybook. Your data is securely stored in the cloud.</p>
       </footer>
 
       {/* Print styles */}

@@ -1,0 +1,28 @@
+{
+  "entities": {
+    "Entry": {
+      "title": "Daybook Entry",
+      "description": "A single transaction entry in the daily daybook",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "customerName": { "type": "string" },
+        "type": { "type": "string", "enum": ["S", "O", "V", "K", "D", "SU", "OM"] },
+        "totalAmount": { "type": "number" },
+        "receivedAmount": { "type": "number" },
+        "pendingAmount": { "type": "number" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "date", "customerName", "type", "totalAmount", "userId"]
+    }
+  },
+  "firestore": {
+    "/entries/{entryId}": {
+      "schema": "Entry",
+      "description": "Collection of all daybook entries across all users"
+    }
+  }
+}
