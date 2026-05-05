@@ -133,8 +133,7 @@ export default function App() {
 
       const q = query(
         collection(db, 'entries'),
-        where('userId', '==', user.uid),
-        orderBy('date', 'desc')
+        where('userId', '==', user.uid)
       );
 
       unsubscribe = onSnapshot(q, (snapshot) => {
@@ -142,6 +141,7 @@ export default function App() {
           ...doc.data(),
           id: doc.id,
         })) as Entry[];
+        docs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setEntries(docs);
       }, (err) => {
         handleFirestoreError(err, OperationType.LIST, 'entries');

@@ -36,7 +36,7 @@ export default function LoginPage({ onLoginSuccess, onSkipLogin }: LoginPageProp
       if (err.code === 'auth/configuration-not-found' || errorMessage.includes('auth/configuration-not-found')) {
         errorMessage = 'Google Sign-In is not enabled. Please go to your Firebase Console -> Authentication -> Sign-in method -> Enable "Google".';
       } else if (err.code === 'auth/unauthorized-domain' || errorMessage.includes('auth/unauthorized-domain')) {
-        errorMessage = `Please add this domain to Firebase Authorized Domains:\n\n1. Go to Firebase Console\n2. Click Authentication -> Settings -> Authorized domains\n3. Add domain: ${window.location.hostname}`;
+        errorMessage = `Please add this domain to Firebase Authorized Domains:\n\n1. Go to Firebase Console\n2. Click Authentication -> Settings -> Authorized domains\n3. Add domain: ${window.location.hostname}\n4. Also add: entery-zone.vercel.app`;
       }
       setError(errorMessage);
     } finally {
