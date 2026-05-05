@@ -11,7 +11,7 @@ interface Entry {
   id: string;
   date: string;
   customerName: string;
-  type: 'S' | 'O' | 'V';
+  type: 'S' | 'O' | 'V' | 'K' | 'D' | 'SU' | 'OM';
   totalAmount: number;
   receivedAmount: number;
   pendingAmount: number;
@@ -28,7 +28,7 @@ export default function App() {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     customerName: '',
-    type: 'S' as 'S' | 'O' | 'V',
+    type: 'S' as 'S' | 'O' | 'V' | 'K' | 'D' | 'SU' | 'OM',
     totalAmount: '',
     receivedAmount: '',
   });
@@ -263,6 +263,10 @@ export default function App() {
                 <option value="S">Sale (S)</option>
                 <option value="O">Other (O)</option>
                 <option value="V">VRS (V)</option>
+                <option value="K">Kunal (K)</option>
+                <option value="D">Dev (D)</option>
+                <option value="SU">Sunny (SU)</option>
+                <option value="OM">OMG (OM)</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -432,7 +436,11 @@ export default function App() {
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                           entry.type === 'S' ? 'bg-green-100 text-green-700' : 
                           entry.type === 'O' ? 'bg-blue-100 text-blue-700' :
-                          'bg-purple-100 text-purple-700'
+                          entry.type === 'V' ? 'bg-purple-100 text-purple-700' :
+                          entry.type === 'K' ? 'bg-indigo-100 text-indigo-700' :
+                          entry.type === 'D' ? 'bg-teal-100 text-teal-700' :
+                          entry.type === 'SU' ? 'bg-orange-100 text-orange-700' :
+                          'bg-pink-100 text-pink-700'
                         }`}>
                           {entry.type}
                         </span>
