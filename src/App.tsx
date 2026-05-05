@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Printer, Trash2, Save, Download } from 'lucide-react';
+import { Plus, Printer, Trash2, Save, Download, Pencil, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Entry {
@@ -20,6 +20,7 @@ interface Entry {
 export default function App() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [activeTab, setActiveTab] = useState<'standard' | 'vrs'>('standard');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterFromDate, setFilterFromDate] = useState('');
   const [filterToDate, setFilterToDate] = useState('');
@@ -64,26 +65,71 @@ export default function App() {
     const total = parseFloat(formData.totalAmount);
     const received = parseFloat(formData.receivedAmount || '0');
     
-    const newEntry: Entry = {
-      id: crypto.randomUUID(),
-      date: formData.date,
-      customerName: formData.customerName,
-      type: formData.type,
-      totalAmount: total,
-      receivedAmount: received,
-      pendingAmount: total - received,
-    };
+    if (editingId) {
+      setEntries(prev => prev.map(entry => {
+        if (entry.id === editingId) {
+          return {
+            ...entry,
+            date: formData.date,
+            customerName: formData.customerName,
+            type: formData.type,
+            totalAmount: total,
+            receivedAmount: received,
+            pendingAmount: total - received,
+          };
+        }
+        return entry;
+      }));
+      setEditingId(null);
+    } else {
+      const newEntry: Entry = {
+        id: crypto.randomUUID(),
+        date: formData.date,
+        customerName: formData.customerName,
+        type: formData.type,
+        totalAmount: total,
+        receivedAmount: received,
+        pendingAmount: total - received,
+      };
 
-    setEntries(prev => [...prev, newEntry]);
-    
-    // Auto-switch tab if added to the other one
-    if (formData.type === 'V' && activeTab === 'standard') setActiveTab('vrs');
-    if (formData.type !== 'V' && activeTab === 'vrs') setActiveTab('standard');
+      setEntries(prev => [...prev, newEntry]);
+      
+      // Auto-switch tab if added to the other one
+      if (formData.type === 'V' && activeTab === 'standard') setActiveTab('vrs');
+      if (formData.type !== 'V' && activeTab === 'vrs') setActiveTab('standard');
+    }
 
     setFormData({
       date: new Date().toISOString().split('T')[0],
       customerName: '',
       type: formData.type,
+      totalAmount: '',
+      receivedAmount: '',
+    });
+  };
+
+  const startEdit = (entry: Entry) => {
+    setEditingId(entry.id);
+    setFormData({
+      date: entry.date,
+      customerName: entry.customerName,
+      type: entry.type,
+      totalAmount: entry.totalAmount.toString(),
+      receivedAmount: entry.receivedAmount.toString(),
+    });
+    // Ensure we are on the right tab to see it
+    if (entry.type === 'V') setActiveTab('vrs');
+    else setActiveTab('standard');
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      customerName: '',
+      type: 'S',
       totalAmount: '',
       receivedAmount: '',
     });
@@ -168,10 +214,19 @@ export default function App() {
         </div>
 
         {/* Input Form Section */}
-        <div className="p-6 bg-gray-50 border-b border-gray-200 print:hidden">
+        <div className={`p-6 border-b border-gray-200 print:hidden ${editingId ? 'bg-orange-50' : 'bg-gray-50'}`}>
           <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-            <Plus size={20} className="text-blue-600" />
-            Add New Entry
+            {editingId ? (
+              <>
+                <Pencil size={20} className="text-orange-600" />
+                Edit Entry
+              </>
+            ) : (
+              <>
+                <Plus size={20} className="text-blue-600" />
+                Add New Entry
+              </>
+            )}
           </h2>
           <form onSubmit={handleAddEntry} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
             <div className="space-y-1">
@@ -233,13 +288,34 @@ export default function App() {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
                 />
-                <button 
-                  type="submit"
-                  className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors flex-shrink-0"
-                  title="Add Entry"
-                >
-                  <Plus size={24} />
-                </button>
+                
+                {editingId ? (
+                  <div className="flex gap-1">
+                    <button 
+                      type="submit"
+                      className="bg-orange-600 text-white p-2 rounded-md hover:bg-orange-700 transition-colors flex-shrink-0"
+                      title="Update Entry"
+                    >
+                      <Save size={24} />
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={cancelEdit}
+                      className="bg-gray-400 text-white p-2 rounded-md hover:bg-gray-500 transition-colors flex-shrink-0"
+                      title="Cancel Edit"
+                    >
+                      <X size={24} />
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    type="submit"
+                    className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors flex-shrink-0"
+                    title="Add Entry"
+                  >
+                    <Plus size={24} />
+                  </button>
+                )}
               </div>
             </div>
           </form>
@@ -367,12 +443,22 @@ export default function App() {
                         ₹{entry.pendingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="p-3 border-x border-gray-100 text-center print:hidden">
-                        <button 
-                          onClick={() => deleteEntry(entry.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button 
+                            onClick={() => startEdit(entry)}
+                            className="p-1.5 text-blue-400 hover:text-blue-600 transition-colors rounded-full hover:bg-blue-50"
+                            title="Edit"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button 
+                            onClick={() => deleteEntry(entry.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </motion.tr>
                   ))
