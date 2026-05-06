@@ -31,6 +31,7 @@ import LoginPage from './components/LoginPage';
 import InvoiceGenerator from './components/InvoiceGenerator';
 import InvoiceHistory from './components/InvoiceHistory';
 import { Logo } from './components/Logo';
+import { useAutoSuggestNames } from './hooks/useAutoSuggestNames';
 
 // --- Error Handling Utility ---
 enum OperationType {
@@ -130,6 +131,9 @@ export default function App() {
     totalAmount: '',
     receivedAmount: '',
   });
+
+  // Auto-suggest names
+  const autoSuggestNames = useAutoSuggestNames(user);
 
   // Handle Auth State
   useEffect(() => {
@@ -596,6 +600,9 @@ export default function App() {
             )}
           </h2>
           <form onSubmit={handleAddEntry} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+            <datalist id="customerNamesListApp">
+              {autoSuggestNames.map(name => <option key={name} value={name} />)}
+            </datalist>
             <div className="space-y-1">
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</label>
               <input 
@@ -612,6 +619,7 @@ export default function App() {
               <input 
                 type="text" 
                 name="customerName"
+                list="customerNamesListApp"
                 placeholder="Enter name"
                 value={formData.customerName}
                 onChange={handleInputChange}

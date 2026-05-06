@@ -3,6 +3,7 @@ import { Plus, Trash2, Printer, Save, FileDown, History } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getFirebase, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Logo } from './Logo';
+import { useAutoSuggestNames } from '../hooks/useAutoSuggestNames';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -45,7 +46,10 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [discountPercent, setDiscountPercent] = useState(0);
   
+  const autoSuggestNames = useAutoSuggestNames(user);
+
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: Date.now().toString(), name: '', hsn: '', quantity: 1, rate: 0, gstPercent: 18 }
   ]);
@@ -89,16 +93,20 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       sgstTotal += itemTax / 2;
     });
 
+    const discountAmount = (subtotal + totalTax) * (discountPercent / 100);
+    const grandTotal = (subtotal + totalTax) - discountAmount;
+
     return {
       subtotal,
       cgst: cgstTotal,
       sgst: sgstTotal,
       totalTax,
-      grandTotal: subtotal + totalTax
+      discountAmount,
+      grandTotal: grandTotal > 0 ? grandTotal : 0
     };
-  }, [items]);
+  }, [items, discountPercent]);
 
-  const { subtotal, cgst, sgst, totalTax, grandTotal } = calculations;
+  const { subtotal, cgst, sgst, totalTax, discountAmount, grandTotal } = calculations;
 
   const handleSaveBill = async () => {
     if (!user) {
@@ -122,6 +130,8 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         cgst,
         sgst,
         totalTax,
+        discountPercent,
+        discountAmount,
         grandTotal,
         createdAt: serverTimestamp(),
       });
@@ -204,8 +214,11 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
              <h3 className="font-bold text-gray-800 border-b pb-2 mb-4 print:border-gray-800 print:mb-2">Billed To:</h3>
              <div className="space-y-3">
                <div>
+                 <datalist id="customerNamesListInvoice">
+                   {autoSuggestNames.map(name => <option key={name} value={name} />)}
+                 </datalist>
                  <label className="block text-sm font-bold text-gray-700 mb-1 print:hidden">Customer Name</label>
-                 <input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none print:border-none print:p-0 print:font-bold print:text-lg" placeholder="Customer Name" />
+                 <input type="text" list="customerNamesListInvoice" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none print:border-none print:p-0 print:font-bold print:text-lg" placeholder="Customer Name" />
                </div>
                <div>
                  <label className="block text-sm font-bold text-gray-700 mb-1 print:hidden">Phone</label>
@@ -306,6 +319,25 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                         <span className="font-mono text-gray-800">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                      </div>
                    </>
+                 )}
+                 <div className="flex justify-between items-center mb-4 border-b border-gray-300 pb-4 print:hidden">
+                    <span className="font-bold text-gray-600">Discount (%):</span>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="number" 
+                        min="0"
+                        max="100"
+                        value={discountPercent} 
+                        onChange={e => setDiscountPercent(parseFloat(e.target.value) || 0)} 
+                        className="w-20 px-2 py-1 border rounded text-right font-mono" 
+                      />
+                    </div>
+                 </div>
+                 {discountPercent > 0 && (
+                    <div className="flex justify-between mb-2 text-sm text-green-600 text-green-700">
+                       <span className="font-bold">Discount ({discountPercent}%):</span>
+                       <span className="font-mono font-bold">-₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
                  )}
                  <div className="flex justify-between items-center mt-2">
                     <span className="text-xl font-bold text-gray-900">Grand Total:</span>

@@ -165,10 +165,20 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
        docPdf.text(`Rs ${invoice.sgst?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 170, finalY + 16, { align: 'left' });
     }
     
+    let currentY = finalY + (invoice.totalTax > 0 ? 24 : 8);
+
+    if(invoice.discountAmount > 0) {
+       docPdf.setTextColor(220, 38, 38); // red for discount
+       docPdf.text(`Discount (${invoice.discountPercent}%):`, 130, currentY);
+       docPdf.text(`-Rs ${invoice.discountAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 170, currentY, { align: 'left' });
+       docPdf.setTextColor(0, 0, 0);
+       currentY += 8;
+    }
+    
     docPdf.setFont("helvetica", "bold");
     docPdf.setFontSize(14);
-    docPdf.text(`Grand Total:`, 130, finalY + 28);
-    docPdf.text(`Rs ${invoice.grandTotal?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 170, finalY + 28, { align: 'left' });
+    docPdf.text(`Grand Total:`, 130, currentY + 4);
+    docPdf.text(`Rs ${invoice.grandTotal?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 170, currentY + 4, { align: 'left' });
 
     docPdf.setFontSize(10);
     docPdf.setFont("helvetica", "normal");
@@ -201,9 +211,9 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4 print:p-0 print:bg-white">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-end gap-4 mb-6 print:hidden">
+    <div className="min-h-screen bg-gray-100 py-6 px-2 print:p-0 print:bg-white text-sm">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex justify-end gap-4 mb-4 print:hidden">
           <button 
              onClick={() => window.print()}
              className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-bold hover:bg-gray-50 transition-colors shadow-sm"
@@ -264,97 +274,103 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
              <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Official Report by zishan gdx</span>
           </div>
 
-          <div className="p-8 print:p-0 print-content-spacer">
+          <div className="p-6 print:p-0 print-content-spacer">
              {/* Header (Screen only) */}
-             <div className="flex justify-between items-start border-b-2 border-gray-100 pb-6 mb-8 print:hidden">
+             <div className="flex justify-between items-start border-b-2 border-gray-100 pb-4 mb-6 print:hidden">
                 <div>
                   {invoice.brandName === 'zishan gdx' || invoice.brandName === 'ZISHAN GDX' || !invoice.brandName ? (
-                    <Logo iconClassName="w-14 h-14" textClassName="text-4xl" />
+                    <Logo iconClassName="w-10 h-10" textClassName="text-3xl" />
                   ) : (
-                    <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">{invoice.brandName}</h1>
+                    <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">{invoice.brandName}</h1>
                   )}
-                  {invoice.gstin && <p className="text-sm text-gray-600 mt-3 font-medium">GSTIN: <span className="font-mono">{invoice.gstin}</span></p>}
+                  {invoice.gstin && <p className="text-xs text-gray-600 mt-2 font-medium">GSTIN: <span className="font-mono">{invoice.gstin}</span></p>}
                 </div>
                 <div className="text-right">
-                  <h2 className="text-2xl font-bold text-gray-800 uppercase tracking-widest mb-2">Tax Invoice</h2>
-                  <p className="font-mono text-gray-600 bg-gray-100 px-3 py-1 rounded inline-block text-sm">Bill No: {invoice.billNo}</p>
+                  <h2 className="text-xl font-bold text-gray-800 uppercase tracking-widest mb-1">Tax Invoice</h2>
+                  <p className="font-mono text-gray-600 bg-gray-100 px-2 py-0.5 rounded inline-block text-xs">Bill No: {invoice.billNo}</p>
                 </div>
              </div>
 
-             <div className="grid grid-cols-2 gap-8 mb-8 mt-8 print:mt-0">
+             <div className="grid grid-cols-2 gap-4 mb-6 mt-4 print:mt-0">
                <div>
-                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Billed To</h3>
-                 <p className="font-bold text-gray-900 text-lg mb-1">{invoice.customerName}</p>
-                 {invoice.customerPhone && <p className="text-gray-600">{invoice.customerPhone}</p>}
-                 {invoice.customerAddress && <p className="text-gray-600 mt-1 whitespace-pre-line">{invoice.customerAddress}</p>}
+                 <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Billed To</h3>
+                 <p className="font-bold text-gray-900 text-base mb-0.5">{invoice.customerName}</p>
+                 {invoice.customerPhone && <p className="text-gray-600 text-xs">{invoice.customerPhone}</p>}
+                 {invoice.customerAddress && <p className="text-gray-600 mt-1 whitespace-pre-line text-xs">{invoice.customerAddress}</p>}
                </div>
-               <div className="text-right">
-                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Date Details</h3>
-                 <p className="font-bold text-gray-900">Invoice Date:</p>
-                 <p className="text-gray-600 mb-2">{invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString('en-IN') : '-'}</p>
+               <div className="text-right text-xs">
+                 <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Date Details</h3>
+                 <p className="font-bold text-gray-900 inline-block mr-2">Invoice Date:</p>
+                 <p className="text-gray-600 inline-block">{invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString('en-IN') : '-'}</p>
                </div>
              </div>
 
-             <table className="w-full mb-8 border border-gray-300">
+             <table className="w-full mb-6 border border-gray-300">
                <thead>
                  <tr className="bg-gray-800 text-white print:bg-gray-200 print:text-gray-900">
-                   <th className="py-3 px-4 text-left font-bold text-sm">#</th>
-                   <th className="py-3 px-4 text-left font-bold text-sm border-l border-gray-700 print:border-gray-300">Item Name</th>
-                   <th className="py-3 px-4 text-center font-bold text-sm border-l border-gray-700 print:border-gray-300">HSN</th>
-                   <th className="py-3 px-4 text-center font-bold text-sm border-l border-gray-700 print:border-gray-300">Qty</th>
-                   <th className="py-3 px-4 text-right font-bold text-sm border-l border-gray-700 print:border-gray-300">Rate</th>
-                   <th className="py-3 px-4 text-center font-bold text-sm border-l border-gray-700 print:border-gray-300">GST %</th>
-                   <th className="py-3 px-4 text-right font-bold text-sm border-l border-gray-700 print:border-gray-300">Total</th>
+                   <th className="py-2 px-3 text-left font-bold text-xs">#</th>
+                   <th className="py-2 px-3 text-left font-bold text-xs border-l border-gray-700 print:border-gray-300">Item Name</th>
+                   <th className="py-2 px-2 text-center font-bold text-xs border-l border-gray-700 print:border-gray-300">HSN</th>
+                   <th className="py-2 px-2 text-center font-bold text-xs border-l border-gray-700 print:border-gray-300">Qty</th>
+                   <th className="py-2 px-3 text-right font-bold text-xs border-l border-gray-700 print:border-gray-300">Rate</th>
+                   <th className="py-2 px-2 text-center font-bold text-xs border-l border-gray-700 print:border-gray-300">GST %</th>
+                   <th className="py-2 px-3 text-right font-bold text-xs border-l border-gray-700 print:border-gray-300">Total</th>
                  </tr>
                </thead>
                <tbody>
                  {(invoice.items || []).map((item: any, idx: number) => (
                    <tr key={idx} className="border-b border-gray-200">
-                     <td className="py-3 px-4 text-sm text-gray-800">{idx + 1}</td>
-                     <td className="py-3 px-4 text-sm font-medium text-gray-900 border-l border-gray-200">{item.name}</td>
-                     <td className="py-3 px-4 text-sm text-center font-mono text-gray-700 border-l border-gray-200">{item.hsn || '-'}</td>
-                     <td className="py-3 px-4 text-sm text-center font-mono text-gray-800 border-l border-gray-200">{item.quantity}</td>
-                     <td className="py-3 px-4 text-sm text-right font-mono text-gray-800 border-l border-gray-200">{item.rate?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                     <td className="py-3 px-4 text-sm text-center font-mono text-gray-800 border-l border-gray-200">{item.gstPercent}%</td>
-                     <td className="py-3 px-4 text-sm text-right font-mono font-bold text-gray-900 border-l border-gray-200">{(item.quantity * item.rate).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                     <td className="py-2 px-3 text-xs text-gray-800">{idx + 1}</td>
+                     <td className="py-2 px-3 text-xs font-medium text-gray-900 border-l border-gray-200">{item.name}</td>
+                     <td className="py-2 px-2 text-xs text-center font-mono text-gray-700 border-l border-gray-200">{item.hsn || '-'}</td>
+                     <td className="py-2 px-2 text-xs text-center font-mono text-gray-800 border-l border-gray-200">{item.quantity}</td>
+                     <td className="py-2 px-3 text-xs text-right font-mono text-gray-800 border-l border-gray-200">{item.rate?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                     <td className="py-2 px-2 text-xs text-center font-mono text-gray-800 border-l border-gray-200">{item.gstPercent}%</td>
+                     <td className="py-2 px-3 text-xs text-right font-mono font-bold text-gray-900 border-l border-gray-200">{(item.quantity * item.rate).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                    </tr>
                  ))}
                </tbody>
              </table>
 
-             <div className="flex flex-col md:flex-row justify-between items-start gap-8 print:flex-row">
-                <div className="w-full md:w-1/2 mt-4 print:w-1/2">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Amount in Words:</p>
-                  <p className="font-bold text-gray-900 uppercase italic p-3 bg-gray-50 border border-gray-200 rounded print:border-none print:px-0 print:bg-transparent">{numberToWords(invoice.grandTotal)}</p>
+             <div className="flex flex-col md:flex-row justify-between items-start gap-6 print:flex-row">
+                <div className="w-full md:w-1/2 mt-2 print:w-1/2">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Amount in Words:</p>
+                  <p className="font-bold text-gray-900 text-xs uppercase italic p-2 bg-gray-50 border border-gray-200 rounded print:border-none print:px-0 print:bg-transparent">{numberToWords(invoice.grandTotal)}</p>
                 </div>
                 
-                <div className="w-full md:w-1/3 print:w-1/3">
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
+                <div className="w-full md:w-2/5 print:w-2/5">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
                       <span className="font-bold text-gray-600">Subtotal:</span>
                       <span className="font-mono text-gray-900">₹{invoice.subtotal?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                     </div>
                     {invoice.totalTax > 0 && (
                       <>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-xs">
                           <span className="text-gray-600">Total CGST:</span>
                           <span className="font-mono text-gray-800">₹{invoice.cgst?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                         </div>
-                        <div className="flex justify-between text-sm border-b border-gray-200 pb-3">
+                        <div className="flex justify-between text-xs border-b border-gray-200 pb-2">
                           <span className="text-gray-600">Total SGST:</span>
                           <span className="font-mono text-gray-800">₹{invoice.sgst?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                         </div>
                       </>
                     )}
-                    <div className="flex justify-between bg-gray-100 p-3 rounded border border-gray-200 print:bg-gray-100 print:border-gray-500">
-                      <span className="font-black text-gray-900 text-lg uppercase">Grand Total:</span>
-                      <span className="font-black font-mono text-gray-900 text-lg">₹{invoice.grandTotal?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                    {invoice.discountAmount > 0 && (
+                        <div className="flex justify-between text-xs text-green-700">
+                          <span className="font-bold">Discount ({invoice.discountPercent}%):</span>
+                          <span className="font-mono font-bold">-₹{invoice.discountAmount?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                        </div>
+                    )}
+                    <div className="flex justify-between bg-gray-100 p-2 rounded border border-gray-200 print:bg-gray-100 print:border-gray-500">
+                      <span className="font-black text-gray-900 text-base uppercase">Grand Total:</span>
+                      <span className="font-black font-mono text-gray-900 text-base">₹{invoice.grandTotal?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                     </div>
                   </div>
                 </div>
              </div>
 
-             <div className="mt-16 pt-8 border-t border-gray-200 flex justify-between items-end print:hidden">
+             <div className="mt-12 pt-6 border-t border-gray-200 flex justify-between items-end print:hidden">
                <div>
                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Powered by zishan gdx</p>
                </div>
