@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Printer, Save, FileDown, History } from 'lucide-react';
+import { Plus, Trash2, Printer, Save, FileDown, History, ClipboardList } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getFirebase, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Logo } from './Logo';
-import { useAutoSuggestNames } from '../hooks/useAutoSuggestNames';
+import { useProductPrices } from '../hooks/useProductPrices';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -48,13 +48,15 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [discountPercent, setDiscountPercent] = useState(0);
   
-  const autoSuggestNames = useAutoSuggestNames(user);
+  const { productPrices, productNames } = useProductPrices(user);
 
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: Date.now().toString(), name: '', hsn: '', quantity: 1, rate: 0, gstPercent: 18 }
   ]);
 
   const [saving, setSaving] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [bulkImportText, setBulkImportText] = useState("");
 
   useEffect(() => {
     // Generate a random Bill No on mount
@@ -72,10 +74,71 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   const handleItemChange = (id: string, field: keyof InvoiceItem, value: any) => {
     setItems(items.map(item => {
       if (item.id === id) {
-        return { ...item, [field]: value };
+        const updatedItem = { ...item, [field]: value };
+        if (field === 'name' && productPrices[value] !== undefined) {
+           updatedItem.rate = productPrices[value];
+        }
+        return updatedItem;
       }
       return item;
     }));
+  };
+
+  const handleBulkImport = () => {
+    const lines = bulkImportText.trim().split('\n');
+    let importedItems: InvoiceItem[] = [];
+    let updatedCustomerName = customerName;
+    let errors: string[] = [];
+
+    lines.forEach((line) => {
+      line = line.trim();
+      if (!line) return;
+
+      const match = line.match(/^(.*?)\s+(\d+)$/);
+      if (match) {
+        const title = match[1].trim();
+        const qty = parseInt(match[2], 10);
+        const rate = productPrices[title] || 0;
+        
+        if (!productPrices[title]) {
+           errors.push(`Price missing for: ${title}`);
+        }
+
+        importedItems.push({
+           id: crypto.randomUUID(),
+           name: title,
+           hsn: '',
+           quantity: qty,
+           rate: rate,
+           gstPercent: 18
+        });
+      } else {
+        if(line.toLowerCase().includes('store') || line.toLowerCase().includes('mart') || line.toLowerCase().includes('agency')) {
+           updatedCustomerName = line;
+        } else {
+           errors.push(`Could not parse quantity for: ${line}. Assuming it is customer detail.`);
+           updatedCustomerName = line; // Assume unparseable things are maybe customer name or details
+        }
+      }
+    });
+
+    if (errors.length > 0) {
+       alert("Bulk Import Note:\n" + errors.join('\n'));
+    }
+
+    if (importedItems.length > 0) {
+      setItems((prevItems) => {
+        // Remove empty placeholder if present
+        const filtered = prevItems.filter(i => i.name !== '' || prevItems.length > 1);
+        return [...filtered, ...importedItems];
+      });
+      setIsBulkImportOpen(false);
+      setBulkImportText('');
+    }
+    
+    if (updatedCustomerName !== customerName) {
+       setCustomerName(updatedCustomerName);
+    }
   };
 
   const calculations = useMemo(() => {
@@ -190,9 +253,44 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       </div>
 
       <div className="p-6 print:p-0 print-content-spacer">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 print:hidden flex items-center gap-2">
-          <FileDown className="text-blue-500" /> Professional Bill Generator
-        </h2>
+        <div className="flex justify-between items-center mb-6 print:hidden">
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <FileDown className="text-blue-500" /> Professional Bill Generator
+          </h2>
+          <button 
+            type="button"
+            onClick={() => setIsBulkImportOpen(!isBulkImportOpen)}
+            className="flex items-center gap-2 bg-purple-100 text-purple-700 px-4 py-2 rounded-lg font-bold hover:bg-purple-200 transition-colors shadow-sm text-sm"
+          >
+            <ClipboardList size={16} /> {isBulkImportOpen ? 'Close Bulk Import' : 'Bulk Import Orders'}
+          </button>
+        </div>
+
+        {isBulkImportOpen && (
+           <div className="mb-6 bg-purple-50 p-4 rounded-lg border border-purple-200 print:hidden">
+             <h3 className="font-bold text-purple-800 mb-2 flex items-center gap-2">
+                Paste WhatsApp Order
+             </h3>
+             <p className="text-xs text-purple-600 mb-3 block">
+               Format: <code>Product Name Quantity</code> (e.g. Vanilla Cup 3)<br/>
+               Lines without quantity will be checked as Customer Name/Details.
+             </p>
+             <textarea 
+               value={bulkImportText}
+               onChange={(e) => setBulkImportText(e.target.value)}
+               className="w-full h-32 px-3 py-2 border border-purple-300 rounded focus:ring-2 focus:ring-purple-500 outline-none resize-y mb-3"
+               placeholder="Vanilla Cup 2&#10;Apna Store&#10;Strawberry Cone 5"
+             />
+             <div className="flex justify-end">
+               <button
+                  onClick={handleBulkImport}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-purple-700 transition-colors shadow-sm"
+               >
+                  Import Items
+               </button>
+             </div>
+           </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 print:hidden">
            <div className="md:col-span-2">
@@ -215,7 +313,10 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
              <div className="space-y-3">
                <div>
                  <datalist id="customerNamesListInvoice">
-                   {autoSuggestNames.map(name => <option key={name} value={name} />)}
+                   {productNames.map(name => <option key={name} value={name} />)}
+                 </datalist>
+                 <datalist id="productNamesListInvoice">
+                   {productNames.map(name => <option key={name} value={name}>{`₹${productPrices[name]}`}</option>)}
                  </datalist>
                  <label className="block text-sm font-bold text-gray-700 mb-1 print:hidden">Customer Name</label>
                  <input type="text" list="customerNamesListInvoice" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none print:border-none print:p-0 print:font-bold print:text-lg" placeholder="Customer Name" />
@@ -260,7 +361,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                 <tr key={item.id} className="border-b print:border-gray-300">
                   <td className="p-3 border-x print:border-gray-300 text-center font-mono text-sm">{idx + 1}</td>
                   <td className="p-2 border-x print:border-gray-300">
-                    <input type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full outline-none bg-transparent print:font-medium text-sm" placeholder="Item Name" />
+                    <input type="text" list="productNamesListInvoice" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full outline-none bg-transparent print:font-medium text-sm" placeholder="Item Name" />
                   </td>
                   <td className="p-2 border-x print:border-gray-300">
                     <input type="text" value={item.hsn} onChange={e => handleItemChange(item.id, 'hsn', e.target.value)} className="w-full outline-none bg-transparent text-center font-mono text-sm" placeholder="HSN" />
