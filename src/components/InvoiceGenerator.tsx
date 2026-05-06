@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Printer, Save, FileDown, History, ClipboardList } from 'lucide-react';
+import { Plus, Trash2, Printer, Save, FileDown, History, ClipboardList, Send } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getFirebase, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Logo } from './Logo';
@@ -102,44 +103,67 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
     let errors: string[] = [];
 
     lines.forEach((line) => {
-      line = line.trim();
-      if (!line) return;
+      const trimmedLine = line.trim();
+      if (!trimmedLine) return;
 
-      const match = line.match(/^(.*?)\s+(\d+)$/);
-      if (match) {
-        const title = match[1].trim();
-        const qty = parseInt(match[2], 10);
-        const rate = productPrices[title] || 0;
-        
-        if (!productPrices[title]) {
-           errors.push(`Price missing for: ${title}`);
-        }
+      // Ignore lines that look like totals or balance summaries
+      if (/balance|total|udhaari|jama|summary/i.test(trimmedLine)) return;
 
-        importedItems.push({
-           id: crypto.randomUUID(),
-           name: title,
-           quantity: qty,
-           rate: rate[globalRateType] || 0,
-           gstPercent: gstEnabled ? 18 : 0
-        });
+      // WhatsApp / Flexible format processing
+      // Find all numbers (integers or decimals)
+      const numberMatches = trimmedLine.match(/(\d+(\.\d+)?)/g);
+      
+      if (numberMatches && numberMatches.length > 0) {
+         // Flexible Quantity Detection: Use the last number as quantity as per user request
+         const quantityStr = numberMatches[numberMatches.length - 1];
+         const quantity = parseFloat(quantityStr);
+         
+         // Product Name Extraction: Remove the quantity number from the line to get the name
+         const lastOccurrenceIndex = trimmedLine.lastIndexOf(quantityStr);
+         let name = (trimmedLine.substring(0, lastOccurrenceIndex) + trimmedLine.substring(lastOccurrenceIndex + quantityStr.length))
+            .replace(/^\s+|\s+$/g, '') // trim
+            .replace(/[.-:\(\)]+\s*$/, '') // remove trailing punctuation
+            .trim();
+
+         // If the line started with a name and ended with a number or vice versa, the name should be relatively clean now.
+         if (name) {
+            // Auto-Match Price: Try exact match or case-insensitive search
+            let rate = 0;
+            const foundName = productNames.find(pn => pn.toLowerCase() === name.toLowerCase());
+            if (foundName) {
+               const prices = productPrices[foundName];
+               rate = prices[globalRateType] || prices?.Normal || prices?.MRP || 0;
+               name = foundName; // Use the canonical name from DB
+            } else {
+               // Try partial match if no exact match
+               const partialMatch = productNames.find(pn => name.toLowerCase().includes(pn.toLowerCase()) || pn.toLowerCase().includes(name.toLowerCase()));
+               if (partialMatch) {
+                  const prices = productPrices[partialMatch];
+                  rate = prices[globalRateType] || prices?.Normal || prices?.MRP || 0;
+                  name = partialMatch;
+               }
+            }
+
+            importedItems.push({
+              id: crypto.randomUUID(),
+              name: name,
+              quantity,
+              rate: rate,
+              gstPercent: gstEnabled ? 18 : 0
+            });
+         }
       } else {
-        if(line.toLowerCase().includes('store') || line.toLowerCase().includes('mart') || line.toLowerCase().includes('agency')) {
-           updatedCustomerName = line;
-        } else {
-           errors.push(`Could not parse quantity for: ${line}. Assuming it is customer detail.`);
-           updatedCustomerName = line; // Assume unparseable things are maybe customer name or details
-        }
+         // Line has no numbers, might be a header or customer name
+         if (trimmedLine.toLowerCase().includes('store') || trimmedLine.toLowerCase().includes('mart') || trimmedLine.toLowerCase().includes('agency')) {
+            updatedCustomerName = trimmedLine;
+         }
       }
     });
 
-    if (errors.length > 0) {
-       alert("Bulk Import Note:\n" + errors.join('\n'));
-    }
-
     if (importedItems.length > 0) {
       setItems((prevItems) => {
-        // Remove empty placeholder if present
-        const filtered = prevItems.filter(i => i.name !== '' || prevItems.length > 1);
+        // Remove empty placeholder row if it's the only one
+        const filtered = prevItems.filter(i => i.name !== '' || i.rate !== 0);
         return [...filtered, ...importedItems];
       });
       setIsBulkImportOpen(false);
@@ -284,29 +308,58 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         </div>
 
         {isBulkImportOpen && (
-           <div className="mb-6 bg-purple-50 p-4 rounded-lg border border-purple-200 print:hidden">
-             <h3 className="font-bold text-purple-800 mb-2 flex items-center gap-2">
-                Paste WhatsApp Order
-             </h3>
-             <p className="text-xs text-purple-600 mb-3 block">
-               Format: <code>Product Name Quantity</code> (e.g. Vanilla Cup 3)<br/>
-               Lines without quantity will be checked as Customer Name/Details.
-             </p>
-             <textarea 
-               value={bulkImportText}
-               onChange={(e) => setBulkImportText(e.target.value)}
-               className="w-full h-32 px-3 py-2 border border-purple-300 rounded focus:ring-2 focus:ring-purple-500 outline-none resize-y mb-3"
-               placeholder="Vanilla Cup 2&#10;Apna Store&#10;Strawberry Cone 5"
-             />
-             <div className="flex justify-end">
-               <button
-                  onClick={handleBulkImport}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-purple-700 transition-colors shadow-sm"
-               >
-                  Import Items
-               </button>
+           <motion.div 
+             initial={{ height: 0, opacity: 0 }}
+             animate={{ height: 'auto', opacity: 1 }}
+             exit={{ height: 0, opacity: 0 }}
+             className="mb-8 overflow-hidden"
+           >
+             <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 rounded-xl border border-blue-100 shadow-sm print:hidden">
+               <div className="flex justify-between items-center mb-3">
+                 <div>
+                   <h3 className="font-black text-indigo-900 flex items-center gap-2 uppercase tracking-tighter text-lg">
+                      <ClipboardList className="text-indigo-600" /> WhatsApp Smart Import
+                   </h3>
+                   <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mt-0.5">
+                     Auto-detects quantity and item name from any line
+                   </p>
+                 </div>
+                 <div className="bg-white px-2 py-1 rounded text-[10px] font-mono text-indigo-400 border border-indigo-100">
+                    EX: "8 Kulfi" OR "Kulfi 8"
+                 </div>
+               </div>
+               
+               <div className="relative">
+                 <textarea 
+                   value={bulkImportText}
+                   onChange={(e) => setBulkImportText(e.target.value)}
+                   className="w-full h-40 px-4 py-3 border-2 border-indigo-100 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none resize-none mb-4 bg-white/80 backdrop-blur-sm transition-all text-sm font-medium"
+                   placeholder="Paste your WhatsApp message here...&#10;8 Vanilla Cup&#10;Choco Bar 12&#10;...and so on"
+                 />
+                 <div className="absolute top-3 right-3 text-indigo-200 pointer-events-none">
+                    <Send size={24} />
+                 </div>
+               </div>
+               
+               <div className="flex justify-end gap-3">
+                 <button
+                    onClick={() => {
+                      setBulkImportText('');
+                      setIsBulkImportOpen(false);
+                    }}
+                    className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors"
+                 >
+                    Discard
+                 </button>
+                 <button
+                    onClick={handleBulkImport}
+                    className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                 >
+                    Import Now
+                 </button>
+               </div>
              </div>
-           </div>
+           </motion.div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 print:hidden">

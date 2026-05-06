@@ -95,9 +95,6 @@ export default function App() {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
-  const [isBulkOpen, setIsBulkOpen] = useState(false);
-  const [bulkInput, setBulkInput] = useState('');
-  const [bulkPreview, setBulkPreview] = useState<Entry[]>([]);
   const [supportName, setSupportName] = useState('');
   const [supportMessage, setSupportMessage] = useState('');
   const [supportSaving, setSupportSaving] = useState(false);
@@ -337,88 +334,6 @@ export default function App() {
       totalAmount: '',
       receivedAmount: '',
     });
-  };
-
-  const processBulkData = () => {
-    if (!bulkInput.trim()) return;
-    const lines = bulkInput.trim().split('\n');
-    const processed: Entry[] = [];
-
-    lines.forEach(line => {
-      // Split by tab (Excel/Google Sheets standard) or comma
-      const columns = line.split(/\t|,/);
-      if (columns.length < 2) return;
-
-      const dateStr = columns[0]?.trim() || new Date().toISOString().split('T')[0];
-      const name = columns[1]?.trim() || 'Unknown';
-      const total = parseFloat(columns[2]?.replace(/[^0-9.]/g, '') || '0');
-      const received = parseFloat(columns[3]?.replace(/[^0-9.]/g, '') || '0');
-      
-      // Attempt to normalize date if it's in DD/MM/YYYY or DD-MM format
-      let finalDate = dateStr;
-      if (dateStr.includes('/') || dateStr.includes('-')) {
-         const parts = dateStr.split(/[/-]/);
-         if (parts.length === 3) {
-            // Assume DD/MM/YYYY or YYYY/MM/DD
-            if (parts[0].length === 4) finalDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-            else finalDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-         } else if (parts.length === 2) {
-            // Assume DD/MM, add current year
-            finalDate = `${new Date().getFullYear()}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-         }
-      }
-
-      processed.push({
-        id: crypto.randomUUID(),
-        date: finalDate,
-        customerName: name,
-        type: 'S',
-        rateType: 'Normal',
-        quantity: 1,
-        rate: total,
-        totalAmount: total,
-        receivedAmount: received,
-        pendingAmount: total - received,
-      });
-    });
-
-    setBulkPreview(processed);
-  };
-
-  const saveBulkEntries = async () => {
-    if (bulkPreview.length === 0) return;
-    
-    if (!user) {
-      setEntries(prev => [...bulkPreview, ...prev]);
-      setBulkPreview([]);
-      setBulkInput('');
-      setIsBulkOpen(false);
-      return;
-    }
-
-    try {
-      const { db } = await getFirebase();
-      if (!db) return;
-
-      const promises = bulkPreview.map(entry => {
-        const entryId = entry.id;
-        const entryData = {
-          ...entry,
-          userId: user.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        };
-        return setDoc(doc(db, 'entries', entryId), entryData);
-      });
-
-      await Promise.all(promises);
-      setBulkPreview([]);
-      setBulkInput('');
-      setIsBulkOpen(false);
-      alert(`${bulkPreview.length} entries saved successfully!`);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'entries_bulk');
-    }
   };
 
   const deleteEntry = async (id: string) => {
@@ -696,23 +611,9 @@ export default function App() {
                     </>
                   )}
                 </h2>
-                
-                {!editingId && (
-                  <button 
-                    onClick={() => setIsBulkOpen(!isBulkOpen)}
-                    className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all border ${
-                      isBulkOpen 
-                      ? 'bg-blue-600 text-white border-blue-600' 
-                      : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'
-                    }`}
-                  >
-                    {isBulkOpen ? 'Switch to Single Entry' : 'Bulk Import (Excel/WhatsApp)'}
-                  </button>
-                )}
               </div>
 
-              {!isBulkOpen ? (
-                <form onSubmit={handleAddEntry} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+              <form onSubmit={handleAddEntry} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                   <datalist id="customerNamesListApp">
                     {productNames.map(name => <option key={name} value={name} />)}
                   </datalist>
@@ -808,69 +709,6 @@ export default function App() {
                     </div>
                   </div>
                 </form>
-              ) : (
-                <div className="space-y-4">
-                  <div className="relative">
-                    <textarea 
-                      placeholder="Paste columns from Google Sheets / WhatsApp here...&#10;Date [Tab] Name [Tab] Total [Tab] Received"
-                      value={bulkInput}
-                      onChange={(e) => setBulkInput(e.target.value)}
-                      className="w-full h-32 p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono"
-                    />
-                    <button 
-                      onClick={processBulkData}
-                      className="absolute bottom-2 right-2 bg-blue-600 text-white px-4 py-1.5 rounded-md font-bold text-xs hover:bg-blue-700 transition-all shadow-md"
-                    >
-                      Process Entries
-                    </button>
-                  </div>
-
-                  {bulkPreview.length > 0 && (
-                    <div className="border border-blue-100 rounded-lg overflow-hidden bg-white shadow-inner">
-                      <div className="p-2 bg-blue-50 border-b border-blue-100 flex justify-between items-center px-4">
-                        <span className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Preview ({bulkPreview.length} items)</span>
-                        <div className="flex gap-2">
-                          <button 
-                             onClick={() => setBulkPreview([])}
-                             className="text-[10px] font-bold text-red-600 hover:underline"
-                          >
-                             Clear Preview
-                          </button>
-                          <button 
-                            onClick={saveBulkEntries}
-                            className="bg-green-600 text-white px-4 py-1 rounded-md font-bold text-xs hover:bg-green-700 flex items-center gap-1 shadow-sm"
-                          >
-                            <Save size={14} />
-                            Save All to Cloud
-                          </button>
-                        </div>
-                      </div>
-                      <div className="max-h-60 overflow-y-auto">
-                        <table className="w-full text-xs">
-                          <thead className="bg-gray-100 sticky top-0">
-                            <tr>
-                              <th className="p-2 text-left">Date</th>
-                              <th className="p-2 text-left">Customer</th>
-                              <th className="p-2 text-right">Total</th>
-                              <th className="p-2 text-right">Received</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {bulkPreview.map((item, idx) => (
-                              <tr key={idx} className="hover:bg-gray-50">
-                                <td className="p-2 border-r">{item.date}</td>
-                                <td className="p-2 border-r">{item.customerName}</td>
-                                <td className="p-2 border-r text-right font-bold text-blue-600">₹{item.totalAmount}</td>
-                                <td className="p-2 text-right font-bold text-green-600">₹{item.receivedAmount}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
         {/* Dashboard / Summary Cards */}
