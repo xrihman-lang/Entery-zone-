@@ -28,6 +28,7 @@ import {
 } from 'firebase/firestore';
 import { getFirebase } from './lib/firebase';
 import LoginPage from './components/LoginPage';
+import InvoiceGenerator from './components/InvoiceGenerator';
 
 // --- Error Handling Utility ---
 enum OperationType {
@@ -78,7 +79,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [localMode, setLocalMode] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [activeTab, setActiveTab] = useState<'standard' | 'vrs'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice'>('standard');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
@@ -517,10 +518,24 @@ export default function App() {
           >
             VRS People Only
           </button>
+          <button
+            onClick={() => setActiveTab('invoice')}
+            className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ml-auto ${
+              activeTab === 'invoice' 
+              ? 'bg-white border-blue-600 text-blue-600' 
+              : 'text-gray-500 hover:text-gray-700 border-transparent'
+            }`}
+          >
+            Create Invoice
+          </button>
         </div>
 
-        {/* Input Form Section */}
-        <div className={`p-6 border-b border-gray-200 print:hidden ${editingId ? 'bg-orange-50' : 'bg-gray-50'}`}>
+        {activeTab === 'invoice' ? (
+          <InvoiceGenerator user={user} />
+        ) : (
+          <>
+            {/* Input Form Section */}
+            <div className={`p-6 border-b border-gray-200 print:hidden ${editingId ? 'bg-orange-50' : 'bg-gray-50'}`}>
           <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
             {editingId ? (
               <>
@@ -859,6 +874,8 @@ export default function App() {
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       <footer className="max-w-6xl mx-auto mt-8 text-center text-gray-400 text-sm print:hidden">
