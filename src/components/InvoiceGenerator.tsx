@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Trash2, Printer, Save, FileDown, History } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { getFirebase, handleFirestoreError, OperationType } from '../lib/firebase';
+import { Logo } from './Logo';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -159,8 +160,12 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       {/* Brand Header for Print */}
       <div className="hidden print:flex print-fixed-header justify-between items-center">
          <div>
-           <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">{brandName || 'zishan gdx'}</h1>
-           {gstin && <p className="text-sm text-gray-600 font-bold mt-1">GSTIN: {gstin}</p>}
+           {brandName === 'zishan gdx' || brandName === 'ZISHAN GDX' || !brandName ? (
+             <Logo iconClassName="w-12 h-12" textClassName="text-3xl" />
+           ) : (
+             <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">{brandName}</h1>
+           )}
+           {gstin && <p className="text-sm text-gray-600 font-bold mt-2">GSTIN: {gstin}</p>}
          </div>
          <div className="text-right">
            <p className="text-gray-900 font-bold tracking-widest uppercase text-xl">Tax Invoice</p>
@@ -204,7 +209,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                </div>
                <div>
                  <label className="block text-sm font-bold text-gray-700 mb-1 print:hidden">Phone</label>
-                 <input type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none print:border-none print:p-0" placeholder="Phone Number" />
+                 <input type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value.replace(/\\D/g, ''))} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none print:border-none print:p-0" placeholder="Phone Number" />
                </div>
                <div>
                  <label className="block text-sm font-bold text-gray-700 mb-1 print:hidden">Address</label>

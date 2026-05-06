@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { Search, Download, FileText, IndianRupee, PieChart } from 'lucide-react';
+import { Search, Download, FileText, IndianRupee, PieChart, MessageCircle } from 'lucide-react';
 import { getFirebase, handleFirestoreError, OperationType } from '../lib/firebase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -9,6 +9,7 @@ interface Invoice {
   id: string;
   billNo: string;
   customerName: string;
+  customerPhone?: string;
   invoiceDate: string;
   grandTotal: number;
   totalTax: number;
@@ -29,14 +30,19 @@ export default function InvoiceHistory({ user }: { user: any }) {
         const { db } = await getFirebase();
         const q = query(
           collection(db, 'invoices'),
-          where('userId', '==', user.uid),
-          orderBy('createdAt', 'desc')
+          where('userId', '==', user.uid)
         );
         const snapshot = await getDocs(q);
         const data = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as Invoice[];
+        // Sort the data client-side by createdAt descending
+        data.sort((a: any, b: any) => {
+          const dateA = a.createdAt?.toMillis ? a.createdAt.toMillis() : new Date(a.invoiceDate || 0).getTime();
+          const dateB = b.createdAt?.toMillis ? b.createdAt.toMillis() : new Date(b.invoiceDate || 0).getTime();
+          return dateB - dateA;
+        });
         setInvoices(data);
       } catch (e) {
         handleFirestoreError(e, OperationType.LIST, 'invoices');
@@ -119,6 +125,18 @@ export default function InvoiceHistory({ user }: { user: any }) {
     });
 
     doc.save(`Invoice_Summary_${timeFilter.replace(/\s+/g, '_')}.pdf`);
+  };
+
+  const shareWhatsApp = (inv: Invoice) => {
+    const url = `${window.location.origin}/view-bill/${inv.id}`;
+    const text = `Hello ${inv.customerName}! Aapka zishan gdx bill taiyar hai. Total: Rs.${inv.grandTotal.toLocaleString('en-IN')}. Apna bill yahan dekhen: ${url}`;
+    
+    let link = `https://wa.me/`;
+    if (inv.customerPhone) {
+      link += `${inv.customerPhone}`;
+    }
+    link += `?text=${encodeURIComponent(text)}`;
+    window.open(link, '_blank');
   };
 
   if (loading) {
@@ -218,6 +236,7 @@ export default function InvoiceHistory({ user }: { user: any }) {
                 <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-500">Customer Name</th>
                 <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-500 text-right">Tax (GST)</th>
                 <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-500 text-right">Grand Total</th>
+                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-500 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -231,11 +250,29 @@ export default function InvoiceHistory({ user }: { user: any }) {
                     <td className="py-4 px-6 text-sm font-medium text-gray-800">{inv.customerName || 'Cash Sale'}</td>
                     <td className="py-4 px-6 text-right font-mono text-sm text-gray-500">₹{(inv.totalTax || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                     <td className="py-4 px-6 text-right font-mono font-bold text-gray-900">₹{(inv.grandTotal || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                    <td className="py-4 px-6 text-center">
+                      <div className="flex items-center justify-center gap-3">
+                        <button 
+                          onClick={() => window.open(`/view-bill/${inv.id}`, '_blank')}
+                          className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center justify-center gap-1"
+                          title="View Bill"
+                        >
+                          <FileText size={16} /> <span className="hidden sm:inline">View</span>
+                        </button>
+                        <button 
+                          onClick={() => shareWhatsApp(inv)}
+                          className="text-green-600 hover:text-green-800 font-medium text-sm flex items-center justify-center gap-1"
+                          title="Share on WhatsApp"
+                        >
+                          <MessageCircle size={16} /> <span className="hidden sm:inline">Share</span>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="py-12 px-6 text-center text-gray-400 font-medium text-sm">
+                  <td colSpan={6} className="py-12 px-6 text-center text-gray-400 font-medium text-sm">
                     {searchTerm ? 'No invoices match your search.' : 'No invoices found for the selected view.'}
                   </td>
                 </tr>

@@ -68,7 +68,8 @@ service cloud.firestore {
 
     // Invoices collection
     match /invoices/{invoiceId} {
-      allow list, get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if true;
       allow create: if isSignedIn() && 
                      isValidId(invoiceId) && 
                      isValidInvoice(request.resource.data);

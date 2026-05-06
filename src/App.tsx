@@ -30,6 +30,7 @@ import { getFirebase } from './lib/firebase';
 import LoginPage from './components/LoginPage';
 import InvoiceGenerator from './components/InvoiceGenerator';
 import InvoiceHistory from './components/InvoiceHistory';
+import { Logo } from './components/Logo';
 
 // --- Error Handling Utility ---
 enum OperationType {
@@ -462,18 +463,16 @@ export default function App() {
       <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden print:overflow-visible print:shadow-none print:m-0">
         
         {/* Header */}
-        <header className="bg-blue-600 text-white p-6 flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
+        <header className="bg-white border-b border-gray-100 p-6 flex flex-col items-center md:flex-row justify-between gap-4 print:hidden rounded-t-lg">
           <div className="flex items-center gap-4">
-            <div className="bg-white/20 p-3 rounded-xl print:hidden">
-              <User size={24} />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Daily Daybook</h1>
-              <p className="text-blue-100 print:hidden text-sm mt-1">
+            <Logo iconClassName="w-12 h-12" textClassName="text-2xl" />
+            <div className="border-l-2 border-gray-100 pl-4">
+              <h1 className="text-xl font-bold tracking-tight text-gray-800">Daily Daybook</h1>
+              <p className="text-gray-500 print:hidden text-sm mt-0.5 font-medium">
                 {user ? `Welcome, ${user.displayName || user.email}` : 'Guest Mode (Local Only)'}
               </p>
               {!user && (
-                <div className="mt-2 inline-flex items-center gap-1 bg-amber-500/30 text-amber-100 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border border-amber-500/50 print:hidden">
+                <div className="mt-1 inline-flex items-center gap-1 bg-amber-100/50 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border border-amber-200 print:hidden">
                   <X size={10} /> Not Syncing
                 </div>
               )}
@@ -482,22 +481,22 @@ export default function App() {
           <div className="flex gap-2 print:hidden">
             <button 
               onClick={handlePrint}
-              className="flex items-center gap-2 bg-white/10 text-white border border-white/20 px-3 py-2 rounded-md font-medium hover:bg-white/20 transition-colors shadow-sm text-sm"
+              className="flex items-center gap-2 bg-gray-50 text-gray-700 border border-gray-200 px-3 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors shadow-sm text-sm"
             >
               <Printer size={16} />
               Print
             </button>
             <button 
               onClick={generatePDF}
-              className="flex items-center gap-2 bg-green-500 text-white border border-green-400 px-3 py-2 rounded-md font-medium hover:bg-green-600 transition-colors shadow-sm text-sm"
+              className="flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 px-3 py-2 rounded-lg font-bold hover:bg-green-100 transition-colors shadow-sm text-sm"
             >
               <FileDown size={16} />
-              Download Report
+              Report
             </button>
             {user ? (
               <button 
                 onClick={handleSignOut}
-                className="flex items-center gap-2 bg-white text-blue-600 px-3 py-2 rounded-md font-medium hover:bg-blue-50 transition-colors shadow-sm text-sm"
+                className="flex items-center gap-2 bg-gray-50 text-blue-600 border border-gray-200 px-3 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors shadow-sm text-sm"
               >
                 <LogOut size={16} />
                 Sign Out
@@ -505,7 +504,7 @@ export default function App() {
             ) : (
               <button 
                 onClick={() => setLocalMode(false)}
-                className="flex items-center gap-2 bg-white text-blue-600 px-3 py-2 rounded-md font-medium hover:bg-blue-50 transition-colors shadow-sm text-sm"
+                className="flex items-center gap-2 bg-blue-600 text-white border border-blue-600 px-3 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-sm"
               >
                 <User size={16} />
                 Login
