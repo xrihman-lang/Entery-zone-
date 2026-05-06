@@ -25,14 +25,15 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(-45deg);
-  font-size: 8rem;
+  font-size: 10rem;
   font-weight: 900;
-  color: rgba(0, 0, 0, 0.02);
+  color: rgba(0, 0, 0, 0.015);
   pointer-events: none;
   white-space: nowrap;
   text-transform: uppercase;
-  z-index: 0;
+  z-index: -1;
   display: block;
+  letter-spacing: 0.5em;
 }
 
 @media print {
@@ -40,5 +41,28 @@
     color: rgba(0, 0, 0, 0.05) !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    display: block !important;
+    font-size: 12rem;
   }
+  
+  /* Remove excessive gaps in print */
+  .max-w-6xl {
+     max-width: 100% !important;
+  }
+}
+
+/* Slim Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }

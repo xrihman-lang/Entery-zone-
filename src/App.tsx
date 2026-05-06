@@ -95,9 +95,22 @@ export default function App() {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [isBulkOpen, setIsBulkOpen] = useState(false);
+  const [bulkInput, setBulkInput] = useState('');
+  const [bulkPreview, setBulkPreview] = useState<Entry[]>([]);
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
   const [supportName, setSupportName] = useState('');
+  const customerInputRef = React.useRef<HTMLInputElement>(null);
   const [supportMessage, setSupportMessage] = useState('');
   const [supportSaving, setSupportSaving] = useState(false);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const id = crypto.randomUUID();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
 
   const handleSupportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,7 +129,7 @@ export default function App() {
         message: supportMessage,
         createdAt: serverTimestamp(),
       });
-      alert('Support ticket submitted successfully. We will contact you soon!');
+      showToast('Support ticket submitted!');
       setSupportName('');
       setSupportMessage('');
       setIsSupportOpen(false);
@@ -232,20 +245,24 @@ export default function App() {
       if (editingId) {
         setEntries(prev => prev.map(e => e.id === editingId ? newEntry : e));
         setEditingId(null);
+        showToast('Entry updated!');
       } else {
         setEntries(prev => [newEntry, ...prev]);
+        showToast('Entry saved!');
         // Auto-switch tab if added to the other one
         if (formData.type === 'V' && activeTab === 'standard') setActiveTab('vrs');
         if (formData.type !== 'V' && activeTab === 'vrs') setActiveTab('standard');
       }
 
       setFormData({
-        date: new Date().toISOString().split('T')[0],
+        date: formData.date, // keep date for next entry
         customerName: '',
         type: formData.type,
         totalAmount: '',
         receivedAmount: '',
+        quantity: '1',
       });
+      customerInputRef.current?.focus();
       return;
     }
 
@@ -268,6 +285,7 @@ export default function App() {
         } as any).catch(err => handleFirestoreError(err, OperationType.UPDATE, `entries/${editingId}`));
         
         setEditingId(null);
+        showToast('Entry updated!');
       } else {
         const entryId = crypto.randomUUID();
         const entryData = {
@@ -289,20 +307,23 @@ export default function App() {
         await setDoc(doc(db, 'entries', entryId), entryData)
           .catch(err => handleFirestoreError(err, OperationType.CREATE, `entries/${entryId}`));
         
+        showToast('Entry saved!');
         // Auto-switch tab if added to the other one
         if (formData.type === 'V' && activeTab === 'standard') setActiveTab('vrs');
         if (formData.type !== 'V' && activeTab === 'vrs') setActiveTab('standard');
       }
 
       setFormData({
-        date: new Date().toISOString().split('T')[0],
+        date: formData.date, // keep date for next entry
         customerName: '',
         type: formData.type,
         totalAmount: '',
         receivedAmount: '',
         quantity: '1',
       });
+      customerInputRef.current?.focus();
     } catch (err) {
+      showToast('Error saving entry', 'error');
       console.error(err);
     }
   };
@@ -339,6 +360,7 @@ export default function App() {
   const deleteEntry = async (id: string) => {
     if (!user) {
       setEntries(prev => prev.filter(e => e.id !== id));
+      showToast('Entry deleted');
       return;
     }
     try {
@@ -346,8 +368,94 @@ export default function App() {
       if (!db) return;
       await deleteDoc(doc(db, 'entries', id))
         .catch(err => handleFirestoreError(err, OperationType.DELETE, `entries/${id}`));
+      showToast('Entry deleted');
     } catch (err) {
+      showToast('Error deleting entry', 'error');
       console.error(err);
+    }
+  };
+
+  const processBulkData = () => {
+    if (!bulkInput.trim()) return;
+    const lines = bulkInput.trim().split('\n');
+    const processed: Entry[] = [];
+
+    lines.forEach(line => {
+      // Split by tab (Excel/Google Sheets standard) or comma
+      const columns = line.split(/\t|,/);
+      if (columns.length < 2) return;
+
+      const dateStr = columns[0]?.trim() || formData.date;
+      const name = columns[1]?.trim() || 'Unknown';
+      const totalAmount = parseFloat(columns[2]?.replace(/[^0-9.]/g, '') || '0');
+      const receivedAmount = parseFloat(columns[3]?.replace(/[^0-9.]/g, '') || '0');
+      
+      // Attempt to normalize date if it's in DD/MM/YYYY or DD-MM format
+      let finalDate = dateStr;
+      if (dateStr.includes('/') || dateStr.includes('-')) {
+         const parts = dateStr.split(/[/-]/);
+         if (parts.length === 3) {
+            // Assume DD/MM/YYYY or YYYY/MM/DD
+            if (parts[0].length === 4) finalDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            else finalDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+         } else if (parts.length === 2) {
+            // Assume DD/MM, add current year
+            finalDate = `${new Date().getFullYear()}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+         }
+      }
+
+      processed.push({
+        id: crypto.randomUUID(),
+        date: finalDate,
+        customerName: name,
+        type: 'S',
+        rateType: 'Normal',
+        quantity: 1,
+        rate: totalAmount,
+        totalAmount,
+        receivedAmount,
+        pendingAmount: totalAmount - receivedAmount,
+      });
+    });
+
+    setBulkPreview(processed);
+  };
+
+  const saveBulkEntries = async () => {
+    if (bulkPreview.length === 0) return;
+    
+    if (!user) {
+      setEntries(prev => [...bulkPreview, ...prev]);
+      setBulkPreview([]);
+      setBulkInput('');
+      setIsBulkOpen(false);
+      showToast(`Imported ${bulkPreview.length} entries locally`);
+      return;
+    }
+
+    try {
+      const { db } = await getFirebase();
+      if (!db) return;
+
+      const promises = bulkPreview.map(entry => {
+        const entryId = entry.id;
+        const entryData = {
+          ...entry,
+          userId: user.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+        return setDoc(doc(db, 'entries', entryId), entryData);
+      });
+
+      await Promise.all(promises);
+      showToast(`${bulkPreview.length} entries saved to Cloud!`);
+      setBulkPreview([]);
+      setBulkInput('');
+      setIsBulkOpen(false);
+    } catch (err) {
+      showToast('Bulk import failed', 'error');
+      handleFirestoreError(err, OperationType.WRITE, 'entries_bulk');
     }
   };
 
@@ -474,11 +582,31 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans print:p-0 print:bg-white">
+    <div className="min-h-screen bg-gray-50 p-2 md:p-4 font-sans print:p-0 print:bg-white">
       <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden print:overflow-visible print:shadow-none print:m-0">
         
+        {/* Toast Notifications */}
+        <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
+          <AnimatePresence>
+            {toasts.map(toast => (
+              <motion.div
+                key={toast.id}
+                initial={{ opacity: 0, x: 20, scale: 0.9 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className={`px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 font-bold text-sm min-w-[200px] ${
+                  toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                }`}
+              >
+                {toast.type === 'success' ? <Star size={18} fill="currentColor" /> : <X size={18} />}
+                {toast.message}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
         {/* Header */}
-        <header className="bg-white border-b border-gray-100 p-6 flex flex-col items-center md:flex-row justify-between gap-4 print:hidden rounded-t-lg">
+        <header className="bg-white border-b border-gray-100 p-4 flex flex-col items-center md:flex-row justify-between gap-4 print:hidden rounded-t-lg">
           <div className="flex items-center gap-4">
             <Logo iconClassName="w-12 h-12" textClassName="text-2xl" />
             <div className="border-l-2 border-gray-100 pl-4">
@@ -539,10 +667,8 @@ export default function App() {
         </div>
 
         {/* Global Print Watermark */}
-        <div className="hidden print:flex fixed inset-0 items-center justify-center pointer-events-none" style={{ zIndex: -100 }}>
-          <div className="transform -rotate-45 text-[150px] font-bold text-[#eee]" style={{ opacity: 0.1 }}>
-            zishan gdx
-          </div>
+        <div className="watermark-text">
+          zishan gdx
         </div>
 
         {/* Tab Switcher */}
@@ -596,24 +722,38 @@ export default function App() {
         ) : (
           <>
             {/* Input Form Section */}
-            <div className={`p-6 border-b border-gray-200 print:hidden ${editingId ? 'bg-orange-50' : 'bg-gray-50'}`}>
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
-                <h2 className="text-lg font-bold text-gray-700 flex items-center gap-2">
+            <div className={`p-4 border-b border-gray-200 print:hidden ${editingId ? 'bg-orange-50' : 'bg-gray-50'}`}>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-2">
+                <h2 className="text-base font-black text-gray-700 flex items-center gap-2 uppercase tracking-tight">
                   {editingId ? (
                     <>
-                      <Pencil size={20} className="text-orange-600" />
+                      <Pencil size={18} className="text-orange-600" />
                       Edit Entry
                     </>
                   ) : (
                     <>
-                      <Plus size={20} className="text-blue-600" />
+                      <Plus size={18} className="text-blue-600" />
                       Add New Entry
                     </>
                   )}
                 </h2>
+                
+                {!editingId && (
+                  <button 
+                    onClick={() => setIsBulkOpen(!isBulkOpen)}
+                    className={`text-[10px] font-black px-4 py-1.5 rounded-full transition-all border uppercase tracking-widest ${
+                      isBulkOpen 
+                      ? 'bg-blue-600 text-white border-blue-600' 
+                      : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'
+                    }`}
+                  >
+                    {isBulkOpen ? '← Switch to Single' : 'Excel/Sheet Import'}
+                  </button>
+                )}
               </div>
 
-              <form onSubmit={handleAddEntry} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+              {!isBulkOpen ? (
+                <form onSubmit={handleAddEntry} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                   <datalist id="customerNamesListApp">
                     {productNames.map(name => <option key={name} value={name} />)}
                   </datalist>
@@ -631,6 +771,7 @@ export default function App() {
                   <div className="md:col-span-1 space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase">Customer/Item</label>
                     <input 
+                      ref={customerInputRef}
                       type="text" 
                       name="customerName"
                       list="customerNamesListApp"
@@ -647,12 +788,12 @@ export default function App() {
                       name="type"
                       value={formData.type}
                       onChange={handleInputChange}
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white text-xs"
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white text-xs font-bold"
                     >
-                      <option value="S">S</option>
-                      <option value="V">V</option>
-                      <option value="O">O</option>
-                      <option value="K">K</option>
+                      <option value="S">S (Regular)</option>
+                      <option value="V">V (VRS)</option>
+                      <option value="O">O (Others)</option>
+                      <option value="K">K (Khalis)</option>
                     </select>
                   </div>
                   <div className="space-y-1">
@@ -661,6 +802,7 @@ export default function App() {
                       type="number" 
                       name="totalAmount"
                       placeholder="0.00"
+                      step="any"
                       value={formData.totalAmount}
                       onChange={handleInputChange}
                       className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-600 text-sm"
@@ -674,9 +816,10 @@ export default function App() {
                         type="number" 
                         name="receivedAmount"
                         placeholder="0.00"
+                        step="any"
                         value={formData.receivedAmount}
                         onChange={handleInputChange}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-green-600"
                       />
                       
                       {editingId ? (
@@ -686,7 +829,7 @@ export default function App() {
                             className="bg-orange-600 text-white p-2 rounded-md hover:bg-orange-700 transition-colors flex-shrink-0"
                             title="Update Entry"
                           >
-                            <Save size={24} />
+                            <Save size={20} />
                           </button>
                           <button 
                             type="button"
@@ -694,36 +837,99 @@ export default function App() {
                             className="bg-gray-400 text-white p-2 rounded-md hover:bg-gray-500 transition-colors flex-shrink-0"
                             title="Cancel Edit"
                           >
-                            <X size={24} />
+                            <X size={20} />
                           </button>
                         </div>
                       ) : (
                         <button 
                           type="submit"
-                          className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors flex-shrink-0"
+                          className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors flex-shrink-0 shadow-md"
                           title="Add Entry"
                         >
-                          <Plus size={24} />
+                          <Save size={20} />
                         </button>
                       )}
                     </div>
                   </div>
                 </form>
+              ) : (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <textarea 
+                      placeholder="Paste columns from Google Sheets / Excel here...&#10;Date [Tab] Name [Tab] Total [Tab] Received"
+                      value={bulkInput}
+                      onChange={(e) => setBulkInput(e.target.value)}
+                      className="w-full h-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-xs font-mono bg-white"
+                    />
+                    <button 
+                      onClick={processBulkData}
+                      className="absolute bottom-2 right-2 bg-blue-600 text-white px-4 py-1.5 rounded-md font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md"
+                    >
+                      Scan Data
+                    </button>
+                  </div>
+
+                  {bulkPreview.length > 0 && (
+                    <div className="border border-blue-100 rounded-lg overflow-hidden bg-white shadow-lg">
+                      <div className="p-2 bg-blue-50 border-b border-blue-100 flex justify-between items-center px-4">
+                        <span className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Preview ({bulkPreview.length} items)</span>
+                        <div className="flex gap-4">
+                          <button 
+                             onClick={() => setBulkPreview([])}
+                             className="text-[10px] font-black text-red-600 hover:underline uppercase"
+                          >
+                             Discard
+                          </button>
+                          <button 
+                            onClick={saveBulkEntries}
+                            className="bg-green-600 text-white px-5 py-1 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-green-700 flex items-center gap-2 shadow-sm"
+                          >
+                            <Save size={14} />
+                            Save All to Cloud
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-52 overflow-y-auto">
+                        <table className="w-full text-[10px]">
+                          <thead className="bg-gray-100 sticky top-0 font-black uppercase text-gray-500">
+                            <tr>
+                              <th className="p-2 text-left border-r w-24">Date</th>
+                              <th className="p-2 text-left border-r">Customer</th>
+                              <th className="p-2 text-right border-r w-20">Total</th>
+                              <th className="p-2 text-right w-20">Received</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {bulkPreview.map((item, idx) => (
+                              <tr key={idx} className="hover:bg-gray-50">
+                                <td className="p-2 border-r">{item.date}</td>
+                                <td className="p-2 border-r font-bold">{item.customerName}</td>
+                                <td className="p-2 border-r text-right font-black text-blue-600">₹{item.totalAmount}</td>
+                                <td className="p-2 text-right font-black text-green-600">₹{item.receivedAmount}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
         {/* Dashboard / Summary Cards */}
-        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white print:hidden">
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded shadow-sm">
-            <h3 className="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Total Sales</h3>
-            <p className="text-xl font-bold text-gray-800 mt-1">₹{totals.total.toLocaleString('en-IN')}</p>
+        <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3 bg-white print:hidden">
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded shadow-sm">
+            <h3 className="text-blue-600 text-[10px] font-black uppercase tracking-widest">Total Sales</h3>
+            <p className="text-lg font-black text-gray-800 mt-1">₹{totals.total.toLocaleString('en-IN')}</p>
           </div>
-          <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded shadow-sm">
-            <h3 className="text-green-600 text-[10px] font-bold uppercase tracking-wider">Total Jama</h3>
-            <p className="text-xl font-bold text-gray-800 mt-1">₹{totals.received.toLocaleString('en-IN')}</p>
+          <div className="bg-green-50 border-l-4 border-green-500 p-3 rounded shadow-sm">
+            <h3 className="text-green-600 text-[10px] font-black uppercase tracking-widest">Total Jama</h3>
+            <p className="text-lg font-black text-gray-800 mt-1">₹{totals.received.toLocaleString('en-IN')}</p>
           </div>
-          <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded shadow-sm">
-            <h3 className="text-yellow-700 text-[10px] font-bold uppercase tracking-wider">Total Udhaari</h3>
-            <p className="text-xl font-bold text-gray-800 mt-1">₹{totals.pending.toLocaleString('en-IN')}</p>
+          <div className="bg-yellow-50 border-l-4 border-yellow-500 p-3 rounded shadow-sm">
+            <h3 className="text-yellow-700 text-[10px] font-black uppercase tracking-widest">Total Udhaari</h3>
+            <p className="text-lg font-black text-gray-800 mt-1 text-red-600">₹{totals.pending.toLocaleString('en-IN')}</p>
           </div>
         </div>
 

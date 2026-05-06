@@ -52,9 +52,10 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   
   const { productPrices, productNames } = useProductPrices(user);
 
-  const [items, setItems] = useState<InvoiceItem[]>([
-    { id: Date.now().toString(), name: '', quantity: 1, rate: 0, gstPercent: 18 }
-  ]);
+  const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
+  const [quickAdd, setQuickAdd] = useState({ name: '', quantity: 1 });
+  const quickAddRef = React.useRef<HTMLInputElement>(null);
 
   const [saving, setSaving] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
@@ -65,8 +66,36 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
     setBillNo(`INV-${Math.floor(1000 + Math.random() * 9000)}`);
   }, []);
 
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const id = crypto.randomUUID();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
+
   const handleAddItem = () => {
-    setItems([...items, { id: Date.now().toString(), name: '', quantity: 1, rate: 0, gstPercent: gstEnabled ? 18 : 0 }]);
+    const newItem = { id: Date.now().toString(), name: '', quantity: 1, rate: 0, gstPercent: gstEnabled ? 18 : 0 };
+    setItems([...items, newItem]);
+  };
+
+  const handleQuickAdd = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!quickAdd.name) return;
+
+    const rate = productPrices[quickAdd.name] ? productPrices[quickAdd.name][globalRateType] : 0;
+    const newItem: InvoiceItem = {
+      id: crypto.randomUUID(),
+      name: quickAdd.name,
+      quantity: quickAdd.quantity || 1,
+      rate: rate,
+      gstPercent: gstEnabled ? 18 : 0
+    };
+
+    setItems(prev => [...prev, newItem]);
+    setQuickAdd({ name: '', quantity: 1 });
+    showToast('Item Added!');
+    quickAddRef.current?.focus();
   };
 
   const handleRemoveItem = (id: string) => {
@@ -162,10 +191,9 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
 
     if (importedItems.length > 0) {
       setItems((prevItems) => {
-        // Remove empty placeholder row if it's the only one
-        const filtered = prevItems.filter(i => i.name !== '' || i.rate !== 0);
-        return [...filtered, ...importedItems];
+        return [...prevItems, ...importedItems];
       });
+      showToast(`${importedItems.length} items imported!`);
       setIsBulkImportOpen(false);
       setBulkImportText('');
     }
@@ -241,9 +269,10 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         grandTotal,
         createdAt: serverTimestamp(),
       });
-      alert('Bill Saved Successfully!');
+      showToast('Bill Saved Successfully!');
       onSaved();
     } catch (e) {
+      showToast('Failed to save bill', 'error');
       handleFirestoreError(e, OperationType.CREATE, 'invoices');
     } finally {
       setSaving(false);
@@ -253,6 +282,26 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   return (
     <div className="relative bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-none print:m-0">
       
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, x: 20, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className={`px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 font-bold text-sm min-w-[200px] ${
+                toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+              }`}
+            >
+              {toast.type === 'success' ? <ClipboardList size={18} /> : <Trash2 size={18} />}
+              {toast.message}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
       {/* Global CSS for Print-specific @page within Invoice Generator */}
       <style>
       {`
@@ -458,7 +507,41 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                 <th className="p-2 border print:border-gray-300 text-xs font-bold w-10 print:hidden"></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="print:text-xs">
+              {/* Quick Add Row */}
+              <tr className="bg-blue-50/50 print:hidden border-b-2 border-blue-100">
+                <td className="p-2 text-center text-blue-400"><Plus size={14} className="mx-auto" /></td>
+                <td className="p-1">
+                  <input 
+                    ref={quickAddRef}
+                    type="text" 
+                    list="productNamesListInvoice" 
+                    value={quickAdd.name} 
+                    onChange={e => setQuickAdd(prev => ({ ...prev, name: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+                    className="w-full outline-none bg-transparent font-bold text-xs py-1.5 px-2" 
+                    placeholder="Quick Add Item..." 
+                  />
+                </td>
+                <td className="p-1">
+                  <input 
+                    type="number" 
+                    value={quickAdd.quantity} 
+                    onChange={e => setQuickAdd(prev => ({ ...prev, quantity: Number(e.target.value) }))}
+                    onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+                    className="w-full outline-none bg-transparent text-center font-bold text-xs py-1.5" 
+                  />
+                </td>
+                <td colSpan={gstEnabled ? 4 : 3} className="p-1 text-right pr-4">
+                   <button 
+                    onClick={() => handleQuickAdd()}
+                    className="bg-blue-600 text-white px-4 py-1 rounded text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95 transition-transform"
+                   >
+                     Add Item
+                   </button>
+                </td>
+              </tr>
+
               {items.map((item, idx) => (
                 <tr key={item.id} className="border-b print:border-gray-300">
                   <td className="p-2 border-x print:border-gray-300 text-center font-mono text-xs text-gray-500">{idx + 1}</td>
