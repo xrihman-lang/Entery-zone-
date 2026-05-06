@@ -131,9 +131,7 @@ export default function App() {
     date: new Date().toISOString().split('T')[0],
     customerName: '',
     type: 'S' as 'S' | 'O' | 'V' | 'K' | 'D' | 'SU' | 'OM',
-    rateType: 'Normal' as 'MRP' | 'Normal' | 'Reddi',
     quantity: '1',
-    rate: '',
     totalAmount: '',
     receivedAmount: '',
   });
@@ -205,32 +203,7 @@ export default function App() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => {
-      const newData = { ...prev, [name]: value };
-      
-      // Auto-fill price if customerName is selected
-      if (name === 'customerName' && productPrices[value] !== undefined) {
-        const productRate = productPrices[value][newData.rateType] || 0;
-        newData.rate = productRate.toString();
-        newData.totalAmount = (productRate * parseFloat(newData.quantity || '0')).toString();
-      }
-
-      // Re-fill price if rateType changes
-      if (name === 'rateType' && productPrices[prev.customerName] !== undefined) {
-        const productRate = productPrices[prev.customerName][value as any] || 0;
-        newData.rate = productRate.toString();
-        newData.totalAmount = (productRate * parseFloat(newData.quantity || '0')).toString();
-      }
-
-      // Recalculate total if quantity or rate changes
-      if (name === 'quantity' || name === 'rate') {
-        const r = name === 'rate' ? parseFloat(value || '0') : parseFloat(prev.rate || '0');
-        const q = name === 'quantity' ? parseFloat(value || '0') : parseFloat(prev.quantity || '0');
-        newData.totalAmount = (r * q).toString();
-      }
-      
-      return newData;
-    });
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleAddEntry = async (e: React.FormEvent) => {
@@ -240,7 +213,6 @@ export default function App() {
     const total = parseFloat(formData.totalAmount || '0');
     const received = parseFloat(formData.receivedAmount || '0');
     const qty = parseFloat(formData.quantity || '0');
-    const rateVal = parseFloat(formData.rate || '0');
     
     // IF NOT LOGGED IN / NO DB - USE LOCAL
     if (!user) {
@@ -249,9 +221,9 @@ export default function App() {
         date: formData.date,
         customerName: formData.customerName,
         type: formData.type,
-        rateType: formData.rateType,
+        rateType: 'Normal',
         quantity: qty,
-        rate: rateVal,
+        rate: qty > 0 ? total / qty : 0,
         totalAmount: total,
         receivedAmount: received,
         pendingAmount: total - received,
@@ -287,9 +259,8 @@ export default function App() {
           date: formData.date,
           customerName: formData.customerName,
           type: formData.type,
-          rateType: formData.rateType,
           quantity: qty,
-          rate: rateVal,
+          rate: qty > 0 ? total / qty : 0,
           totalAmount: total,
           receivedAmount: received,
           pendingAmount: total - received,
@@ -304,9 +275,8 @@ export default function App() {
           date: formData.date,
           customerName: formData.customerName,
           type: formData.type,
-          rateType: formData.rateType,
           quantity: qty,
-          rate: rateVal,
+          rate: qty > 0 ? total / qty : 0,
           totalAmount: total,
           receivedAmount: received,
           pendingAmount: total - received,
@@ -331,7 +301,6 @@ export default function App() {
         totalAmount: '',
         receivedAmount: '',
         quantity: '1',
-        rate: '',
       });
     } catch (err) {
       console.error(err);
@@ -344,9 +313,7 @@ export default function App() {
       date: entry.date,
       customerName: entry.customerName,
       type: entry.type,
-      rateType: entry.rateType || 'Normal',
       quantity: (entry.quantity || 1).toString(),
-      rate: (entry.rate || 0).toString(),
       totalAmount: entry.totalAmount.toString(),
       receivedAmount: entry.receivedAmount.toString(),
     });
@@ -363,9 +330,7 @@ export default function App() {
       date: new Date().toISOString().split('T')[0],
       customerName: '',
       type: 'S',
-      rateType: 'Normal',
       quantity: '1',
-      rate: '',
       totalAmount: '',
       receivedAmount: '',
     });
@@ -404,8 +369,7 @@ export default function App() {
       total: acc.total + curr.totalAmount,
       received: acc.received + curr.receivedAmount,
       pending: acc.pending + curr.pendingAmount,
-      qty: acc.qty + (curr.quantity || 0),
-    }), { total: 0, received: 0, pending: 0, qty: 0 });
+    }), { total: 0, received: 0, pending: 0 });
   }, [filteredEntries]);
 
   const topCustomer = useMemo(() => {
@@ -646,16 +610,9 @@ export default function App() {
               </>
             )}
           </h2>
-          <form onSubmit={handleAddEntry} className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
+          <form onSubmit={handleAddEntry} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
             <datalist id="customerNamesListApp">
-              {productNames.map(name => {
-                const prices = productPrices[name];
-                return (
-                  <option key={name} value={name}>
-                    {`N: ₹${prices?.Normal || 0} | M: ₹${prices?.MRP || 0} | R: ₹${prices?.Reddi || 0}`}
-                  </option>
-                );
-              })}
+              {productNames.map(name => <option key={name} value={name} />)}
             </datalist>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-gray-400 uppercase">Date</label>
@@ -681,60 +638,19 @@ export default function App() {
                 required
               />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">Type</label>
-                <select 
-                  name="type"
-                  value={formData.type}
-                  onChange={handleInputChange}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white text-xs"
-                >
-                  <option value="S">S</option>
-                  <option value="V">V</option>
-                  <option value="O">O</option>
-                  <option value="K">K</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">Rate T</label>
-                <select 
-                  name="rateType"
-                  value={formData.rateType}
-                  onChange={handleInputChange}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white text-xs"
-                >
-                  <option value="Normal">Norm</option>
-                  <option value="MRP">MRP</option>
-                  <option value="Reddi">Red</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">Qty</label>
-                <input 
-                  type="number" 
-                  name="quantity"
-                  placeholder="1"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">Rate</label>
-                <input 
-                  type="number" 
-                  name="rate"
-                  placeholder="0.00"
-                  value={formData.rate}
-                  onChange={handleInputChange}
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                  required
-                />
-              </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase">Type</label>
+              <select 
+                name="type"
+                value={formData.type}
+                onChange={handleInputChange}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white text-xs"
+              >
+                <option value="S">S</option>
+                <option value="V">V</option>
+                <option value="O">O</option>
+                <option value="K">K</option>
+              </select>
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-gray-400 uppercase">Total</label>
@@ -744,7 +660,7 @@ export default function App() {
                 placeholder="0.00"
                 value={formData.totalAmount}
                 onChange={handleInputChange}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded bg-gray-100 outline-none font-bold text-blue-600 text-sm"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-600 text-sm"
                 required
               />
             </div>
@@ -793,7 +709,7 @@ export default function App() {
         </div>
 
         {/* Dashboard / Summary Cards */}
-        <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-4 bg-white print:hidden">
+        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white print:hidden">
           <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded shadow-sm">
             <h3 className="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Total Sales</h3>
             <p className="text-xl font-bold text-gray-800 mt-1">₹{totals.total.toLocaleString('en-IN')}</p>
@@ -805,10 +721,6 @@ export default function App() {
           <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded shadow-sm">
             <h3 className="text-yellow-700 text-[10px] font-bold uppercase tracking-wider">Total Udhaari</h3>
             <p className="text-xl font-bold text-gray-800 mt-1">₹{totals.pending.toLocaleString('en-IN')}</p>
-          </div>
-          <div className="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded shadow-sm">
-            <h3 className="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">Total Dabba</h3>
-            <p className="text-xl font-bold text-gray-800 mt-1">{totals.qty}</p>
           </div>
         </div>
 
@@ -902,8 +814,6 @@ export default function App() {
                 <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap">Date</th>
                 <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap hidden print:table-cell">Time</th>
                 <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap">Name</th>
-                <th className="p-3 border border-gray-200 text-xs font-bold uppercase whitespace-nowrap text-center">Dabba</th>
-                <th className="p-3 border border-gray-200 text-xs font-bold uppercase whitespace-nowrap text-right">Rate</th>
                 <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap text-center print:hidden">Type</th>
                 <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap text-right text-blue-800">Total</th>
                 <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap text-right text-green-800">Jama</th>
@@ -954,8 +864,6 @@ export default function App() {
                           )}
                         </div>
                       </td>
-                      <td className="p-3 border-x border-gray-100 text-xs text-center font-mono text-gray-600">{entry.quantity || 0}</td>
-                      <td className="p-3 border-x border-gray-100 text-xs text-right font-mono text-gray-600">₹{(entry.rate || 0).toLocaleString('en-IN')}</td>
                       <td className="p-3 border-x border-gray-100 text-sm text-center print:hidden">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                           entry.type === 'S' ? 'bg-green-100 text-green-700' : 
@@ -1001,8 +909,6 @@ export default function App() {
               <tfoot>
                 <tr className="bg-gray-800 text-white font-bold text-lg print:text-black print:bg-gray-100">
                   <td colSpan={4} className="p-4 text-right pr-6 uppercase tracking-wider text-[10px] print:hidden">Summary</td>
-                  <td className="p-4 text-center font-black text-sm text-blue-300">{totals.qty}</td>
-                  <td className="p-4 hidden md:table-cell"></td>
                   <td className="p-4 text-right font-mono text-sm">₹{totals.total.toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td>
                   <td className="p-4 text-right font-mono text-green-400 print:text-gray-800 text-sm">₹{totals.received.toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td>
                   <td className="p-4 text-right font-mono text-yellow-400 print:text-gray-800 text-sm">₹{totals.pending.toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td>
