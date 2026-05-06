@@ -137,27 +137,27 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
     <div className="relative bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-none print:m-0">
       
       {/* Global CSS for Print-specific @page within Invoice Generator */}
-      <style className="print:block hidden">
+      <style>
       {`
         @media print {
-          @page { size: A4 portrait; margin: 1cm; }
+          @page { size: A4 portrait; margin: 15mm; }
           .print\\:flex { display: flex !important; }
-          .print-fixed-header { position: fixed; top: 0; left: 0; width: 100%; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 15px; }
-          .print-fixed-footer { position: fixed; bottom: 0; left: 0; width: 100%; height: 40px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; }
-          .print-content-spacer { padding-top: 100px; padding-bottom: 60px; }
+          .print-fixed-header { position: fixed; top: 0; left: 0; right: 0; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 15px; }
+          .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 40px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; }
+          .print-content-spacer { padding-top: 80px; padding-bottom: 60px; }
         }
       `}
       </style>
 
       {/* Global Print Watermark */}
       <div className="hidden print:flex fixed inset-0 items-center justify-center pointer-events-none" style={{ zIndex: -100 }}>
-         <div className="transform -rotate-45 text-[140px] font-bold text-[#eee] whitespace-nowrap" style={{ opacity: 0.1 }}>
+         <div className="transform -rotate-45 text-[120px] font-bold text-[#eee] whitespace-nowrap" style={{ opacity: 0.2 }}>
             zishan gdx
          </div>
       </div>
 
       {/* Brand Header for Print */}
-      <div className="hidden print:flex print-fixed-header justify-between items-end">
+      <div className="hidden print:flex print-fixed-header justify-between items-center">
          <div>
            <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">{brandName || 'zishan gdx'}</h1>
            {gstin && <p className="text-sm text-gray-600 font-bold mt-1">GSTIN: {gstin}</p>}
