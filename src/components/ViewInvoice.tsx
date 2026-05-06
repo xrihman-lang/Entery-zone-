@@ -125,34 +125,44 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
       docPdf.text(addressLines, 14, invoice.customerPhone ? 69 : 63);
     }
     
-    const tableData = (invoice.items || []).map((item: any, index: number) => [
-      index + 1,
-      item.name,
-      item.hsn || '-',
-      item.quantity.toString(),
-      item.rate.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-      item.gstPercent + '%',
-      (item.quantity * item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })
-    ]);
+    const tableData = (invoice.items || []).map((item: any, index: number) => {
+      const row = [
+        index + 1,
+        item.name,
+        item.quantity.toString(),
+        item.rate.toLocaleString('en-IN', { minimumFractionDigits: 2 })
+      ];
+      if (invoice.gstEnabled !== false) {
+        row.push(item.gstPercent + '%');
+      }
+      row.push((item.quantity * item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }));
+      return row;
+    });
+
+    const head = ['S.No', 'Item Name', 'Qty', 'Rate'];
+    if (invoice.gstEnabled !== false) head.push('GST %');
+    head.push('Total');
 
     autoTable(docPdf, {
       startY: 85,
-      head: [['S.No', 'Item Name', 'HSN', 'Qty', 'Rate', 'GST %', 'Total']],
+      head: [head],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [37, 99, 235] },
       columnStyles: {
         0: { halign: 'center', cellWidth: 15 },
-        2: { halign: 'center', cellWidth: 20 },
-        3: { halign: 'center', cellWidth: 15 },
-        4: { halign: 'right', cellWidth: 25 },
-        5: { halign: 'center', cellWidth: 20 },
-        6: { halign: 'right', cellWidth: 35 },
+        2: { halign: 'center', cellWidth: 15 },
+        3: { halign: 'right', cellWidth: 25 },
+        ...(invoice.gstEnabled !== false ? { 4: { halign: 'center', cellWidth: 20 } } : {}),
+        [invoice.gstEnabled !== false ? 5 : 4]: { halign: 'right', cellWidth: 35 },
       }
     });
 
     const finalY = (docPdf as any).lastAutoTable.finalY + 10;
     
+    docPdf.setFont("helvetica", "bold");
+    docPdf.text(`Total Qty (Dabba): ${invoice.totalQty || 0}`, 14, finalY);
+
     docPdf.setFont("helvetica", "normal");
     docPdf.text(`Subtotal:`, 140, finalY);
     docPdf.text(`Rs ${invoice.subtotal?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 170, finalY, { align: 'left' });
@@ -310,10 +320,9 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
                  <tr className="bg-gray-800 text-white print:bg-gray-200 print:text-gray-900">
                    <th className="py-2 px-3 text-left font-bold text-xs">#</th>
                    <th className="py-2 px-3 text-left font-bold text-xs border-l border-gray-700 print:border-gray-300">Item Name</th>
-                   <th className="py-2 px-2 text-center font-bold text-xs border-l border-gray-700 print:border-gray-300">HSN</th>
                    <th className="py-2 px-2 text-center font-bold text-xs border-l border-gray-700 print:border-gray-300">Qty</th>
                    <th className="py-2 px-3 text-right font-bold text-xs border-l border-gray-700 print:border-gray-300">Rate</th>
-                   <th className="py-2 px-2 text-center font-bold text-xs border-l border-gray-700 print:border-gray-300">GST %</th>
+                   {invoice.gstEnabled !== false && <th className="py-2 px-2 text-center font-bold text-xs border-l border-gray-700 print:border-gray-300">GST %</th>}
                    <th className="py-2 px-3 text-right font-bold text-xs border-l border-gray-700 print:border-gray-300">Total</th>
                  </tr>
                </thead>
@@ -322,13 +331,18 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
                    <tr key={idx} className="border-b border-gray-200">
                      <td className="py-2 px-3 text-xs text-gray-800">{idx + 1}</td>
                      <td className="py-2 px-3 text-xs font-medium text-gray-900 border-l border-gray-200">{item.name}</td>
-                     <td className="py-2 px-2 text-xs text-center font-mono text-gray-700 border-l border-gray-200">{item.hsn || '-'}</td>
                      <td className="py-2 px-2 text-xs text-center font-mono text-gray-800 border-l border-gray-200">{item.quantity}</td>
                      <td className="py-2 px-3 text-xs text-right font-mono text-gray-800 border-l border-gray-200">{item.rate?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                     <td className="py-2 px-2 text-xs text-center font-mono text-gray-800 border-l border-gray-200">{item.gstPercent}%</td>
+                     {invoice.gstEnabled !== false && <td className="py-2 px-2 text-xs text-center font-mono text-gray-800 border-l border-gray-200">{item.gstPercent}%</td>}
                      <td className="py-2 px-3 text-xs text-right font-mono font-bold text-gray-900 border-l border-gray-200">{(item.quantity * item.rate).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                    </tr>
                  ))}
+                 {/* Summary row for total dabba qty in print */}
+                 <tr className="bg-gray-50 print:bg-gray-100 hidden print:table-row">
+                    <td colSpan={2} className="p-2 text-right font-bold text-xs uppercase tracking-tighter">Total Qty (Dabba):</td>
+                    <td className="p-2 text-center font-black text-xs border border-gray-300">{invoice.totalQty || 0}</td>
+                    <td colSpan={invoice.gstEnabled !== false ? 3 : 2} className="p-2 text-right font-bold text-xs">Summary</td>
+                 </tr>
                </tbody>
              </table>
 
@@ -340,6 +354,10 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
                 
                 <div className="w-full md:w-2/5 print:w-2/5">
                   <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-bold text-gray-600 uppercase tracking-tighter">Total Qty (Dabba):</span>
+                      <span className="font-black text-gray-900 border-b-2 border-blue-200">{invoice.totalQty || 0}</span>
+                    </div>
                     <div className="flex justify-between text-xs">
                       <span className="font-bold text-gray-600">Subtotal:</span>
                       <span className="font-mono text-gray-900">₹{invoice.subtotal?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>

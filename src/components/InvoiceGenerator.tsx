@@ -10,7 +10,6 @@ import autoTable from 'jspdf-autotable';
 interface InvoiceItem {
   id: string;
   name: string;
-  hsn: string;
   quantity: number;
   rate: number;
   gstPercent: number;
@@ -47,11 +46,13 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   const [customerAddress, setCustomerAddress] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [discountPercent, setDiscountPercent] = useState(0);
+  const [gstEnabled, setGstEnabled] = useState(true);
+  const [globalRateType, setGlobalRateType] = useState<'MRP' | 'Normal' | 'Reddi'>('Normal');
   
   const { productPrices, productNames } = useProductPrices(user);
 
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: Date.now().toString(), name: '', hsn: '', quantity: 1, rate: 0, gstPercent: 18 }
+    { id: Date.now().toString(), name: '', quantity: 1, rate: 0, gstPercent: 18 }
   ]);
 
   const [saving, setSaving] = useState(false);
@@ -64,11 +65,21 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   }, []);
 
   const handleAddItem = () => {
-    setItems([...items, { id: Date.now().toString(), name: '', hsn: '', quantity: 1, rate: 0, gstPercent: 18 }]);
+    setItems([...items, { id: Date.now().toString(), name: '', quantity: 1, rate: 0, gstPercent: gstEnabled ? 18 : 0 }]);
   };
 
   const handleRemoveItem = (id: string) => {
     setItems(items.filter(item => item.id !== id));
+  };
+
+  const handleGlobalRateTypeChange = (type: 'MRP' | 'Normal' | 'Reddi') => {
+    setGlobalRateType(type);
+    setItems(items.map(item => {
+      if (item.name && productPrices[item.name]) {
+        return { ...item, rate: productPrices[item.name][type] };
+      }
+      return item;
+    }));
   };
 
   const handleItemChange = (id: string, field: keyof InvoiceItem, value: any) => {
@@ -76,7 +87,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value };
         if (field === 'name' && productPrices[value] !== undefined) {
-           updatedItem.rate = productPrices[value];
+           updatedItem.rate = productPrices[value][globalRateType];
         }
         return updatedItem;
       }
@@ -107,10 +118,9 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         importedItems.push({
            id: crypto.randomUUID(),
            name: title,
-           hsn: '',
            quantity: qty,
-           rate: rate,
-           gstPercent: 18
+           rate: rate[globalRateType] || 0,
+           gstPercent: gstEnabled ? 18 : 0
         });
       } else {
         if(line.toLowerCase().includes('store') || line.toLowerCase().includes('mart') || line.toLowerCase().includes('agency')) {
@@ -147,13 +157,18 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
     let cgstTotal = 0;
     let sgstTotal = 0;
     
+    let totalQty = 0;
+    
     items.forEach(item => {
       const itemTotal = item.quantity * item.rate;
       subtotal += itemTotal;
-      const itemTax = itemTotal * (item.gstPercent / 100);
-      totalTax += itemTax;
-      cgstTotal += itemTax / 2;
-      sgstTotal += itemTax / 2;
+      totalQty += item.quantity;
+      if (gstEnabled) {
+        const itemTax = itemTotal * (item.gstPercent / 100);
+        totalTax += itemTax;
+        cgstTotal += itemTax / 2;
+        sgstTotal += itemTax / 2;
+      }
     });
 
     const discountAmount = (subtotal + totalTax) * (discountPercent / 100);
@@ -164,12 +179,13 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       cgst: cgstTotal,
       sgst: sgstTotal,
       totalTax,
+      totalQty,
       discountAmount,
       grandTotal: grandTotal > 0 ? grandTotal : 0
     };
-  }, [items, discountPercent]);
+  }, [items, discountPercent, gstEnabled]);
 
-  const { subtotal, cgst, sgst, totalTax, discountAmount, grandTotal } = calculations;
+  const { subtotal, cgst, sgst, totalTax, totalQty, discountAmount, grandTotal } = calculations;
 
   const handleSaveBill = async () => {
     if (!user) {
@@ -188,7 +204,10 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         customerPhone,
         customerAddress,
         invoiceDate,
+        gstEnabled,
+        rateType: globalRateType,
         items,
+        totalQty,
         subtotal,
         cgst,
         sgst,
@@ -316,14 +335,21 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                    {productNames.map(name => <option key={name} value={name} />)}
                  </datalist>
                  <datalist id="productNamesListInvoice">
-                   {productNames.map(name => <option key={name} value={name}>{`₹${productPrices[name]}`}</option>)}
+                   {productNames.map(name => {
+                     const prices = productPrices[name];
+                     return (
+                       <option key={name} value={name}>
+                         {`N: ₹${prices?.Normal || 0} | M: ₹${prices?.MRP || 0} | R: ₹${prices?.Reddi || 0}`}
+                       </option>
+                     );
+                   })}
                  </datalist>
                  <label className="block text-sm font-bold text-gray-700 mb-1 print:hidden">Customer Name</label>
                  <input type="text" list="customerNamesListInvoice" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none print:border-none print:p-0 print:font-bold print:text-lg" placeholder="Customer Name" />
                </div>
                <div>
                  <label className="block text-sm font-bold text-gray-700 mb-1 print:hidden">Phone</label>
-                 <input type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value.replace(/\\D/g, ''))} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none print:border-none print:p-0" placeholder="Phone Number" />
+                 <input type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value.replace(/\D/g, ''))} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none print:border-none print:p-0" placeholder="Phone Number" />
                </div>
                <div>
                  <label className="block text-sm font-bold text-gray-700 mb-1 print:hidden">Address</label>
@@ -343,54 +369,84 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         </div>
 
         <div className="mb-6">
+          <div className="flex flex-wrap gap-4 items-center mb-4">
+             <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg">
+                <input 
+                  type="checkbox" 
+                  id="gstToggle" 
+                  checked={gstEnabled} 
+                  onChange={(e) => setGstEnabled(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                <label htmlFor="gstToggle" className="text-sm font-bold text-gray-700 cursor-pointer">GST Active</label>
+             </div>
+
+             <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg">
+                <span className="text-sm font-bold text-gray-700">Rate Type:</span>
+                <select 
+                  value={globalRateType} 
+                  onChange={(e) => handleGlobalRateTypeChange(e.target.value as any)}
+                  className="text-sm font-bold text-blue-600 bg-transparent outline-none cursor-pointer"
+                >
+                  <option value="Normal">Normal</option>
+                  <option value="MRP">MRP (Full)</option>
+                  <option value="Reddi">Reddi Tier</option>
+                </select>
+             </div>
+          </div>
+
           <table className="w-full text-left border-collapse print:border print:border-gray-300">
             <thead>
               <tr className="bg-gray-800 text-white print:bg-gray-200 print:text-black">
-                <th className="p-3 border print:border-gray-300 text-sm font-bold w-12 text-center">#</th>
-                <th className="p-3 border print:border-gray-300 text-sm font-bold">Item Description</th>
-                <th className="p-3 border print:border-gray-300 text-sm font-bold w-24 text-center">HSN</th>
-                <th className="p-3 border print:border-gray-300 text-sm font-bold w-20 text-center">Qty</th>
-                <th className="p-3 border print:border-gray-300 text-sm font-bold w-28 text-right">Rate</th>
-                <th className="p-3 border print:border-gray-300 text-sm font-bold w-24 text-center">GST %</th>
-                <th className="p-3 border print:border-gray-300 text-sm font-bold w-32 text-right">Total</th>
-                <th className="p-3 border print:border-gray-300 text-sm font-bold w-12 print:hidden"></th>
+                <th className="p-2 border print:border-gray-300 text-xs font-bold w-10 text-center uppercase tracking-tight">#</th>
+                <th className="p-2 border print:border-gray-300 text-xs font-bold uppercase tracking-tight">Item</th>
+                <th className="p-2 border print:border-gray-300 text-xs font-bold w-16 text-center uppercase tracking-tight">Qty</th>
+                <th className="p-2 border print:border-gray-300 text-xs font-bold w-24 text-right uppercase tracking-tight">Rate</th>
+                {gstEnabled && <th className="p-2 border print:border-gray-300 text-xs font-bold w-16 text-center uppercase tracking-tight">GST%</th>}
+                <th className="p-2 border print:border-gray-300 text-xs font-bold w-28 text-right uppercase tracking-tight">Total</th>
+                <th className="p-2 border print:border-gray-300 text-xs font-bold w-10 print:hidden"></th>
               </tr>
             </thead>
             <tbody>
               {items.map((item, idx) => (
                 <tr key={item.id} className="border-b print:border-gray-300">
-                  <td className="p-3 border-x print:border-gray-300 text-center font-mono text-sm">{idx + 1}</td>
-                  <td className="p-2 border-x print:border-gray-300">
-                    <input type="text" list="productNamesListInvoice" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full outline-none bg-transparent print:font-medium text-sm" placeholder="Item Name" />
+                  <td className="p-2 border-x print:border-gray-300 text-center font-mono text-xs text-gray-500">{idx + 1}</td>
+                  <td className="p-1 border-x print:border-gray-300">
+                    <input type="text" list="productNamesListInvoice" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full outline-none bg-transparent print:font-medium text-xs py-1" placeholder="Item Name" />
                   </td>
-                  <td className="p-2 border-x print:border-gray-300">
-                    <input type="text" value={item.hsn} onChange={e => handleItemChange(item.id, 'hsn', e.target.value)} className="w-full outline-none bg-transparent text-center font-mono text-sm" placeholder="HSN" />
+                  <td className="p-1 border-x print:border-gray-300">
+                    <input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', Number(e.target.value))} className="w-full outline-none bg-transparent text-center font-mono text-xs py-1" />
                   </td>
-                  <td className="p-2 border-x print:border-gray-300">
-                    <input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', Number(e.target.value))} className="w-full outline-none bg-transparent text-center font-mono text-sm" />
+                  <td className="p-1 border-x print:border-gray-300 text-right">
+                    <input type="number" min="0" value={item.rate || ''} onChange={e => handleItemChange(item.id, 'rate', Number(e.target.value))} className="w-full outline-none bg-transparent text-right font-mono text-xs py-1" placeholder="0.00" />
                   </td>
-                  <td className="p-2 border-x print:border-gray-300">
-                    <input type="number" min="0" value={item.rate || ''} onChange={e => handleItemChange(item.id, 'rate', Number(e.target.value))} className="w-full outline-none bg-transparent text-right font-mono text-sm" placeholder="0.00" />
-                  </td>
-                  <td className="p-2 border-x print:border-gray-300">
-                    <select value={item.gstPercent} onChange={e => handleItemChange(item.id, 'gstPercent', Number(e.target.value))} className="w-full outline-none bg-transparent text-center font-mono text-sm print:appearance-none">
-                      <option value={0}>0%</option>
-                      <option value={5}>5%</option>
-                      <option value={12}>12%</option>
-                      <option value={18}>18%</option>
-                      <option value={28}>28%</option>
-                    </select>
-                  </td>
-                  <td className="p-3 border-x print:border-gray-300 text-right font-mono tracking-tight text-gray-800 text-sm">
+                  {gstEnabled && (
+                    <td className="p-1 border-x print:border-gray-300 text-center">
+                      <select value={item.gstPercent} onChange={e => handleItemChange(item.id, 'gstPercent', Number(e.target.value))} className="w-full outline-none bg-transparent text-center font-mono text-xs py-1 print:appearance-none">
+                        <option value={0}>0%</option>
+                        <option value={5}>5%</option>
+                        <option value={12}>12%</option>
+                        <option value={18}>18%</option>
+                        <option value={28}>28%</option>
+                      </select>
+                    </td>
+                  )}
+                  <td className="p-2 border-x print:border-gray-300 text-right font-mono tracking-tight text-gray-800 text-xs">
                     {(item.quantity * item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="p-2 border-x print:border-gray-300 text-center print:hidden">
+                  <td className="p-1 border-x print:border-gray-300 text-center print:hidden">
                     <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:text-red-700 p-1">
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
                   </td>
                 </tr>
               ))}
+              {/* Summary Row for Print */}
+              <tr className="bg-gray-50 print:bg-gray-100 hidden print:table-row">
+                 <td colSpan={2} className="p-2 text-right font-bold text-xs">Total Qty (Dabba):</td>
+                 <td className="p-2 text-center font-black text-xs border border-gray-300">{totalQty}</td>
+                 <td colSpan={gstEnabled ? 3 : 2} className="p-2 text-right font-bold text-xs">Page Summary</td>
+              </tr>
             </tbody>
           </table>
           
@@ -406,20 +462,24 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
            <div className="w-full md:w-1/2 ml-auto">
               <div className="bg-gray-50 p-6 rounded border border-gray-200 print:bg-transparent print:border-none print:p-0">
                  <div className="flex justify-between mb-2">
-                    <span className="font-bold text-gray-600">Subtotal:</span>
-                    <span className="font-mono text-gray-800">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <span className="font-bold text-gray-600">Total Qty (Dabba):</span>
+                    <span className="font-black text-gray-900 border-b-2 border-blue-200">{totalQty}</span>
                  </div>
-                 {totalTax > 0 && (
-                   <>
-                     <div className="flex justify-between mb-2 text-sm">
-                        <span className="font-medium text-gray-600">Total CGST:</span>
-                        <span className="font-mono text-gray-800">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                     </div>
-                     <div className="flex justify-between mb-4 border-b border-gray-300 pb-4 text-sm">
-                        <span className="font-medium text-gray-600">Total SGST:</span>
-                        <span className="font-mono text-gray-800">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                     </div>
-                   </>
+                 <div className="flex justify-between mb-2">
+                    <span className="font-bold text-gray-600 text-sm">Taxable Subtotal:</span>
+                    <span className="font-mono text-gray-800 text-sm">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                 </div>
+                 {gstEnabled && totalTax > 0 && (
+                    <>
+                      <div className="flex justify-between mb-2 text-xs">
+                         <span className="font-medium text-gray-600">Total CGST:</span>
+                         <span className="font-mono text-gray-800">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between mb-4 border-b border-gray-300 pb-2 text-xs">
+                         <span className="font-medium text-gray-600">Total SGST:</span>
+                         <span className="font-mono text-gray-800">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </>
                  )}
                  <div className="flex justify-between items-center mb-4 border-b border-gray-300 pb-4 print:hidden">
                     <span className="font-bold text-gray-600">Discount (%):</span>
@@ -449,30 +509,33 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         </div>
 
         {/* Tax Details Table & Amount in Words */}
-        <div className="mt-6 border border-gray-200 rounded p-4 bg-gray-50 print:border-gray-800 print:bg-white print:p-0 print:border-none print:mt-4 pb-8 print:pb-0">
-          <h4 className="font-bold text-gray-700 mb-2 uppercase text-sm border-b pb-2">Tax Details & Summary</h4>
-          <table className="w-full text-left border-collapse text-sm mb-6 print:border-gray-400">
-            <thead>
-              <tr className="bg-gray-200 print:bg-gray-100 text-gray-800">
-                <th className="p-2 border border-gray-300 print:border-gray-400">Taxable Value</th>
-                <th className="p-2 border border-gray-300 print:border-gray-400">CGST</th>
-                <th className="p-2 border border-gray-300 print:border-gray-400">SGST</th>
-                <th className="p-2 border border-gray-300 print:border-gray-400">Total Tax</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div className="flex flex-col gap-1">
-            <span className="font-bold text-gray-700 text-sm">Amount in Words:</span>
-            <span className="font-bold text-gray-900 uppercase italic bg-gray-200 px-3 py-1.5 rounded w-fit print:border print:border-gray-300 print:bg-transparent print:italic print:px-0 print:py-0 border-none">{numberToWords(grandTotal)}</span>
+        {gstEnabled && (
+          <div className="mt-4 border border-gray-200 rounded p-4 bg-gray-50 print:border-gray-800 print:bg-white print:p-0 print:border-none print:mt-4 pb-6 print:pb-0">
+            <h4 className="font-bold text-gray-700 mb-2 uppercase text-xs border-b pb-1">Tax Details</h4>
+            <table className="w-full text-left border-collapse text-xs mb-4 print:border-gray-400">
+              <thead>
+                <tr className="bg-gray-200 print:bg-gray-100 text-gray-800">
+                  <th className="p-2 border border-gray-300 print:border-gray-400">Taxable</th>
+                  <th className="p-2 border border-gray-300 print:border-gray-400">CGST</th>
+                  <th className="p-2 border border-gray-300 print:border-gray-400">SGST</th>
+                  <th className="p-2 border border-gray-300 print:border-gray-400">Total Tax</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+        )}
+        
+        <div className="mt-4 flex flex-col gap-1">
+          <span className="font-bold text-gray-700 text-xs">Amount in Words:</span>
+          <span className="font-bold text-gray-900 uppercase italic bg-gray-50 px-3 py-1.5 rounded w-fit text-sm border-l-4 border-blue-600 print:border-none print:px-0 print:bg-transparent">{numberToWords(grandTotal)}</span>
         </div>
         
         <div className="mt-8 flex justify-end gap-4 print:hidden">

@@ -3,8 +3,8 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { getFirebase } from "../lib/firebase";
 
 export function useProductPrices(user: any) {
-  // Map of itemName to its latest price
-  const [productPrices, setProductPrices] = useState<Record<string, number>>({});
+  // Map of itemName to its latest prices per type
+  const [productPrices, setProductPrices] = useState<Record<string, { MRP: number, Normal: number, Reddi: number }>>({});
   const [productNames, setProductNames] = useState<string[]>([]);
 
   useEffect(() => {
@@ -16,19 +16,22 @@ export function useProductPrices(user: any) {
         const { db } = await getFirebase();
         if (!db) return;
 
-        const newProductMap: Record<string, { price: number, date: number }> = {};
+        const newProductMap: Record<string, { prices: { MRP: number, Normal: number, Reddi: number }, date: number }> = {};
 
-        // Fetch from entries where Customer Name is treated as Item Name and Total Amount as price
+        // Fetch from entries
         const qEntries = query(collection(db, "entries"), where("userId", "==", user.uid));
         const snapEntries = await getDocs(qEntries);
         snapEntries.forEach((doc) => {
           const data = doc.data();
-          const name = data.customerName; // used as item name
+          const name = data.customerName; // used as item name in App.tsx context
           const amt = parseFloat(data.totalAmount);
           const date = data.createdAt?.toMillis?.() || new Date(data.date).getTime() || 0;
           if (name && !isNaN(amt) && amt > 0) {
             if (!newProductMap[name] || newProductMap[name].date < date) {
-               newProductMap[name] = { price: amt, date };
+               newProductMap[name] = { 
+                 prices: { MRP: amt, Normal: amt, Reddi: amt }, 
+                 date 
+               };
             }
           }
         });
@@ -45,16 +48,21 @@ export function useProductPrices(user: any) {
              const rate = parseFloat(item.rate);
              if (name && !isNaN(rate) && rate > 0) {
                if (!newProductMap[name] || newProductMap[name].date < date) {
-                 newProductMap[name] = { price: rate, date };
+                 // Initialize with existing if found, or default
+                 const existing = newProductMap[name]?.prices || { MRP: rate, Normal: rate * 0.9, Reddi: rate * 0.8 };
+                 newProductMap[name] = { 
+                   prices: existing, 
+                   date 
+                 };
                }
              }
           });
         });
 
         if (isMounted) {
-          const finalMap: Record<string, number> = {};
+          const finalMap: Record<string, { MRP: number, Normal: number, Reddi: number }> = {};
           for (const [key, val] of Object.entries(newProductMap)) {
-            finalMap[key] = val.price;
+            finalMap[key] = val.prices;
           }
           setProductPrices(finalMap);
           setProductNames(Object.keys(finalMap).sort());
