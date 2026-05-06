@@ -86,10 +86,10 @@ export function StockManager({ user }: { user: any }) {
           updatedAt: serverTimestamp()
         };
         await setDoc(doc(db, 'stock', id), newItem);
-        setItems(prev => [...prev, newItem as unknown as StockItem].sort((a, b) => a.name.localeCompare(b.name)));
         setShowAdd(false);
       }
       setFormData({ name: '', piecesPerCrate: 20, marginPerPiece: 0 });
+      await fetchStock();
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'stock');
     }
@@ -106,17 +106,19 @@ export function StockManager({ user }: { user: any }) {
       const item = items.find(i => i.id === addStockId);
       if (!item) return;
 
-      const addedPieces = (Number(stockFormData.crates) * item.piecesPerCrate) + Number(stockFormData.extraPieces);
-      const newTotal = item.totalPieces + addedPieces;
+      const safePiecesPerCrate = item.piecesPerCrate || 20;
+
+      const addedPieces = (Number(stockFormData.crates) * safePiecesPerCrate) + Number(stockFormData.extraPieces);
+      const newTotal = (item.totalPieces || 0) + addedPieces;
 
       await updateDoc(doc(db, 'stock', addStockId), {
         totalPieces: newTotal,
         updatedAt: serverTimestamp()
       });
 
-      setItems(prev => prev.map(i => i.id === addStockId ? { ...i, totalPieces: newTotal } : i));
       setAddStockId(null);
       setStockFormData({ crates: 0, extraPieces: 0 });
+      await fetchStock();
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'stock');
     }
@@ -190,8 +192,9 @@ export function StockManager({ user }: { user: any }) {
           <div className="text-sm font-bold text-gray-500 col-span-3">No products added. Click 'New Product' to start tracking stock.</div>
         ) : (
           items.map(item => {
-            const crates = Math.floor(item.totalPieces / item.piecesPerCrate);
-            const extra = item.totalPieces % item.piecesPerCrate;
+            const safePiecesPerCrate = item.piecesPerCrate || 20;
+            const crates = Math.floor(item.totalPieces / safePiecesPerCrate);
+            const extra = item.totalPieces % safePiecesPerCrate;
             
             return (
               <div key={item.id} className="border border-gray-200 p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow bg-white flex flex-col relative overflow-hidden">
@@ -218,11 +221,11 @@ export function StockManager({ user }: { user: any }) {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h3 className="font-black text-gray-800 text-lg">{item.name}</h3>
-                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{item.piecesPerCrate} pcs / crate • Margin: ₹{item.marginPerPiece}</p>
+                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{item.piecesPerCrate || 20} pcs / crate • Margin: ₹{item.marginPerPiece || 0}</p>
                       </div>
                       <div className="flex gap-1">
                         <button onClick={() => {
-                          setFormData({ name: item.name, piecesPerCrate: item.piecesPerCrate, marginPerPiece: item.marginPerPiece });
+                          setFormData({ name: item.name, piecesPerCrate: item.piecesPerCrate || 20, marginPerPiece: item.marginPerPiece || 0 });
                           setEditingId(item.id);
                           setShowAdd(false);
                         }} className="p-1 text-gray-400 hover:text-blue-600"><Pencil size={14}/></button>

@@ -5,6 +5,7 @@ import { addDoc, collection, serverTimestamp, writeBatch, query, where, getDocs,
 import { getFirebase, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Logo } from './Logo';
 import { useProductPrices } from '../hooks/useProductPrices';
+import { useLocalDate, getLocalDateString } from '../hooks/useLocalDate';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -45,7 +46,20 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  const localDate = useLocalDate();
+  const [invoiceDate, setInvoiceDate] = useState(getLocalDateString());
+  const prevLocalDate = React.useRef(localDate);
+
+  useEffect(() => {
+    if (prevLocalDate.current !== localDate) {
+      if (invoiceDate === prevLocalDate.current) {
+        setInvoiceDate(localDate);
+      }
+      prevLocalDate.current = localDate;
+    }
+  }, [localDate, invoiceDate]);
+
   const [discountPercent, setDiscountPercent] = useState(0);
   const [gstEnabled, setGstEnabled] = useState(true);
   const [globalRateType, setGlobalRateType] = useState<'MRP' | 'Normal' | 'Reddi'>('Normal');
@@ -315,6 +329,13 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       await batch.commit();
 
       showToast('Bill Saved Successfully! Stock deducted.');
+      // Auto refresh form
+      setCustomerName('');
+      setCustomerPhone('');
+      setCustomerAddress('');
+      setItems([]);
+      setDiscountPercent(0);
+      
       onSaved();
     } catch (e) {
       showToast('Failed to save bill or deduct stock', 'error');

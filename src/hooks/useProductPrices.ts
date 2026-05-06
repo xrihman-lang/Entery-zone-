@@ -68,6 +68,19 @@ export function useProductPrices(user: any) {
           });
         });
 
+        // Fetch from stock
+        const qStock = query(collection(db, "stock"), where("userId", "==", user.uid));
+        const snapStock = await getDocs(qStock);
+        snapStock.forEach((doc) => {
+          const name = doc.data().name;
+          if (name && !newProductMap[name]) {
+            newProductMap[name] = {
+              prices: { MRP: 0, Normal: 0, Reddi: 0 },
+              date: 0
+            };
+          }
+        });
+
         if (isMounted) {
           const finalMap: Record<string, { MRP: number, Normal: number, Reddi: number }> = {};
           for (const [key, val] of Object.entries(newProductMap)) {

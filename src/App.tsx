@@ -36,6 +36,7 @@ import InvoiceHistory from './components/InvoiceHistory';
 import { StockManager } from './components/StockManager';
 import { Logo } from './components/Logo';
 import { useProductPrices } from './hooks/useProductPrices';
+import { useLocalDate, getLocalDateString } from './hooks/useLocalDate';
 
 // --- Error Handling Utility ---
 enum OperationType {
@@ -85,6 +86,7 @@ interface Entry {
 }
 
 export default function App() {
+  const localDate = useLocalDate();
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [localMode, setLocalMode] = useState(false);
@@ -92,11 +94,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice' | 'history' | 'stock'>('standard');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const todayStr = new Date().toISOString().split('T')[0];
+  
+  // Use dynamically updated localDate instead of static initialization
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const [filterFromDate, setFilterFromDate] = useState(todayStr); // Defaults to today
-  const [filterToDate, setFilterToDate] = useState(todayStr);     // Defaults to today
+  const [filterFromDate, setFilterFromDate] = useState(getLocalDateString()); // Defaults to today
+  const [filterToDate, setFilterToDate] = useState(getLocalDateString());     // Defaults to today
+  
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const prevLocalDate = React.useRef(localDate);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
@@ -146,13 +153,31 @@ export default function App() {
   };
   
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalDateString(),
     customerName: '',
     type: 'S' as 'S' | 'O' | 'V' | 'K' | 'D' | 'SU' | 'OM',
     quantity: '1',
     totalAmount: '',
     receivedAmount: '',
   });
+
+  // Sync dates at midnight (auto-refresh)
+  useEffect(() => {
+    if (prevLocalDate.current !== localDate) {
+      setFormData(prev => {
+        // Only auto-update the date if it was still set to the old 'today'
+        if (prev.date === prevLocalDate.current) {
+          return { ...prev, date: localDate };
+        }
+        return prev;
+      });
+      // also update filter if it was set to old today
+      setFilterFromDate(f => f === prevLocalDate.current ? localDate : f);
+      setFilterToDate(f => f === prevLocalDate.current ? localDate : f);
+      
+      prevLocalDate.current = localDate;
+    }
+  }, [localDate]);
 
   const { productPrices, productNames } = useProductPrices(user);
 
@@ -231,11 +256,17 @@ export default function App() {
     };
 
     syncData();
-  }, [user, filterFromDate, filterToDate, filterMonth, filterYear]);
+  }, [user, filterFromDate, filterToDate, filterMonth, filterYear, refreshTrigger]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Auto-sync the table filter with the form date!
+    if (name === 'date') {
+      setFilterFromDate(value);
+      setFilterToDate(value);
+    }
   };
 
   const handleAddEntry = async (e: React.FormEvent) => {
@@ -281,6 +312,7 @@ export default function App() {
         receivedAmount: '',
         quantity: '1',
       });
+      setRefreshTrigger(prev => prev + 1);
       customerInputRef.current?.focus();
       return;
     }
@@ -358,6 +390,7 @@ export default function App() {
         receivedAmount: '',
         quantity: '1',
       });
+      setRefreshTrigger(prev => prev + 1);
       customerInputRef.current?.focus();
     } catch (err) {
       showToast('Error saving entry', 'error');
@@ -385,7 +418,7 @@ export default function App() {
   const cancelEdit = () => {
     setEditingId(null);
     setFormData({
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateString(),
       customerName: '',
       type: 'S',
       quantity: '1',
