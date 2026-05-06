@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Trash2, Printer, Save, FileDown, History, ClipboardList, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, writeBatch, query, where, getDocs, doc, increment } from 'firebase/firestore';
 import { getFirebase, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Logo } from './Logo';
 import { useProductPrices } from '../hooks/useProductPrices';
@@ -247,7 +247,13 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
     setSaving(true);
     try {
       const { db } = await getFirebase();
-      await addDoc(collection(db, 'invoices'), {
+      if (!db) return;
+
+      const batch = writeBatch(db);
+
+      // Create new invoice document
+      const invoiceRef = doc(collection(db, 'invoices'));
+      batch.set(invoiceRef, {
         userId: user.uid,
         billNo,
         brandName,
@@ -269,11 +275,50 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         grandTotal,
         createdAt: serverTimestamp(),
       });
-      showToast('Bill Saved Successfully!');
+
+      // Deduct stock for each item
+      const itemNames = items.filter(i => i.name.trim() !== '').map(i => i.name);
+      if (itemNames.length > 0) {
+         // Query stock items
+         // Note: If user has > 30 unique items in a bill, 'in' query fails, but 30 is plenty for standard bill.
+         // We do chunks of 10 just to be safe
+         const chunks = [];
+         for (let i = 0; i < itemNames.length; i += 10) {
+            chunks.push(itemNames.slice(i, i + 10));
+         }
+
+         for (const chunk of chunks) {
+            const q = query(
+               collection(db, 'stock'),
+               where('userId', '==', user.uid),
+               where('name', 'in', chunk)
+            );
+            const snap = await getDocs(q);
+            const stockDocs = snap.docs;
+
+            stockDocs.forEach(stockDoc => {
+               const stockName = stockDoc.data().name;
+               // Find all items with this name in the invoice (in case of duplicates)
+               const qtyToDeduct = items.filter(i => i.name === stockName).reduce((acc, curr) => acc + curr.quantity, 0);
+               
+               if (qtyToDeduct > 0) {
+                  batch.update(stockDoc.ref, {
+                     totalPieces: increment(-qtyToDeduct),
+                     soldPieces: increment(qtyToDeduct),
+                     updatedAt: serverTimestamp()
+                  });
+               }
+            });
+         }
+      }
+
+      await batch.commit();
+
+      showToast('Bill Saved Successfully! Stock deducted.');
       onSaved();
     } catch (e) {
-      showToast('Failed to save bill', 'error');
-      handleFirestoreError(e, OperationType.CREATE, 'invoices');
+      showToast('Failed to save bill or deduct stock', 'error');
+      handleFirestoreError(e, OperationType.WRITE, 'invoices_and_stock');
     } finally {
       setSaving(false);
     }

@@ -18,18 +18,22 @@ import {
   query, 
   where, 
   onSnapshot, 
+  getDocs,
   addDoc, 
   updateDoc, 
   deleteDoc, 
   doc, 
   serverTimestamp,
   orderBy,
-  setDoc
+  setDoc,
+  writeBatch,
+  increment
 } from 'firebase/firestore';
 import { getFirebase } from './lib/firebase';
 import LoginPage from './components/LoginPage';
 import InvoiceGenerator from './components/InvoiceGenerator';
 import InvoiceHistory from './components/InvoiceHistory';
+import { StockManager } from './components/StockManager';
 import { Logo } from './components/Logo';
 import { useProductPrices } from './hooks/useProductPrices';
 
@@ -85,13 +89,14 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [localMode, setLocalMode] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice' | 'history'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice' | 'history' | 'stock'>('standard');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const todayStr = new Date().toISOString().split('T')[0];
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const [filterFromDate, setFilterFromDate] = useState('');
-  const [filterToDate, setFilterToDate] = useState('');
+  const [filterFromDate, setFilterFromDate] = useState(todayStr); // Defaults to today
+  const [filterToDate, setFilterToDate] = useState(todayStr);     // Defaults to today
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
@@ -178,41 +183,55 @@ export default function App() {
     return () => unsubscribe && unsubscribe();
   }, []);
 
-  // Sync with Firestore or LocalStorage
+  // Handle Local Storage for Guest Mode
   useEffect(() => {
-    if (!user) {
-      // Logic for Guest / Local Mode
-      if (!authLoading) {
-        localStorage.setItem('daybook_entries_local', JSON.stringify(entries));
-      }
-      return;
+    if (!user && !authLoading) {
+      localStorage.setItem('daybook_entries_local', JSON.stringify(entries));
     }
+  }, [entries, user, authLoading]);
 
-    let unsubscribe: any;
+  // Sync with Firestore (Optimized: No real-time listeners for all data)
+  useEffect(() => {
+    if (!user) return;
+
     const syncData = async () => {
       const { db } = await getFirebase();
       if (!db) return;
 
-      const q = query(
-        collection(db, 'entries'),
-        where('userId', '==', user.uid)
-      );
+      let from = filterFromDate;
+      let to = filterToDate;
 
-      unsubscribe = onSnapshot(q, (snapshot) => {
-        const docs = snapshot.docs.map(doc => ({
+      // If no explicit dates are set, fallback to month/year range
+      if (!from && !to && filterMonth !== 0) {
+         const firstDay = new Date(filterYear, filterMonth - 1, 1);
+         const lastDay = new Date(filterYear, filterMonth, 0);
+         from = new Date(firstDay.getTime() - (firstDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+         to = new Date(lastDay.getTime() - (lastDay.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+      }
+
+      let q = query(collection(db, 'entries'), where('userId', '==', user.uid));
+      
+      try {
+        const snapshot = await getDocs(q);
+        let docs = snapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id,
         })) as Entry[];
+
+        // Perform date filtering locally since composite indexes aren't created by default
+        if (from) docs = docs.filter(doc => doc.date >= from!);
+        if (to) docs = docs.filter(doc => doc.date <= to!);
+
         docs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
         setEntries(docs);
-      }, (err) => {
+      } catch (err) {
         handleFirestoreError(err, OperationType.LIST, 'entries');
-      });
+      }
     };
 
     syncData();
-    return () => unsubscribe && unsubscribe();
-  }, [user, entries, authLoading]);
+  }, [user, filterFromDate, filterToDate, filterMonth, filterYear]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -303,9 +322,27 @@ export default function App() {
           updatedAt: serverTimestamp(),
         };
 
-        // Use setDoc with ID to keep it consistent
-        await setDoc(doc(db, 'entries', entryId), entryData)
-          .catch(err => handleFirestoreError(err, OperationType.CREATE, `entries/${entryId}`));
+        const qStock = query(collection(db, 'stock'), where('userId', '==', user.uid), where('name', '==', formData.customerName));
+        const stockSnap = await getDocs(qStock);
+
+        if (!stockSnap.empty && qty > 0 && formData.type === 'S') { // Deduct only for sales
+           const batch = writeBatch(db);
+           const entryRef = doc(db, 'entries', entryId);
+           batch.set(entryRef, entryData);
+           
+           stockSnap.forEach(stockDoc => {
+             batch.update(stockDoc.ref, {
+               totalPieces: increment(-qty),
+               soldPieces: increment(qty),
+               updatedAt: serverTimestamp()
+             });
+           });
+           
+           await batch.commit().catch(err => handleFirestoreError(err, OperationType.CREATE, `entries/${entryId}`));
+        } else {
+           await setDoc(doc(db, 'entries', entryId), entryData)
+             .catch(err => handleFirestoreError(err, OperationType.CREATE, `entries/${entryId}`));
+        }
         
         showToast('Entry saved!');
         // Auto-switch tab if added to the other one
@@ -713,12 +750,24 @@ export default function App() {
           >
             Invoice History
           </button>
+          <button
+            onClick={() => setActiveTab('stock')}
+            className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+              activeTab === 'stock' 
+              ? 'bg-white border-orange-600 text-orange-600' 
+              : 'text-gray-500 hover:text-gray-700 border-transparent'
+            }`}
+          >
+            Stock
+          </button>
         </div>
 
         {activeTab === 'invoice' ? (
           <InvoiceGenerator user={user} onSaved={() => setActiveTab('standard')} />
         ) : activeTab === 'history' ? (
           <InvoiceHistory user={user} />
+        ) : activeTab === 'stock' ? (
+          <StockManager user={user} />
         ) : (
           <>
             {/* Input Form Section */}

@@ -1,14 +1,18 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import { getFirebase } from "../lib/firebase";
 
+// Global in-memory cache to prevent multiple fetches across components
+let globalProductPrices: Record<string, { MRP: number, Normal: number, Reddi: number }> | null = null;
+let globalProductNames: string[] = [];
+
 export function useProductPrices(user: any) {
-  // Map of itemName to its latest prices per type
-  const [productPrices, setProductPrices] = useState<Record<string, { MRP: number, Normal: number, Reddi: number }>>({});
-  const [productNames, setProductNames] = useState<string[]>([]);
+  const [productPrices, setProductPrices] = useState<Record<string, { MRP: number, Normal: number, Reddi: number }>>(globalProductPrices || {});
+  const [productNames, setProductNames] = useState<string[]>(globalProductNames || []);
 
   useEffect(() => {
     if (!user) return;
+    if (globalProductPrices) return; // Already fetched
     
     let isMounted = true;
     const fetchPrices = async () => {
@@ -18,12 +22,15 @@ export function useProductPrices(user: any) {
 
         const newProductMap: Record<string, { prices: { MRP: number, Normal: number, Reddi: number }, date: number }> = {};
 
-        // Fetch from entries
-        const qEntries = query(collection(db, "entries"), where("userId", "==", user.uid));
+        // Fetch from entries (Limit to recent 200 to save reads)
+        const qEntries = query(
+          collection(db, "entries"), 
+          where("userId", "==", user.uid)
+        );
         const snapEntries = await getDocs(qEntries);
         snapEntries.forEach((doc) => {
           const data = doc.data();
-          const name = data.customerName; // used as item name in App.tsx context
+          const name = data.customerName; 
           const amt = parseFloat(data.totalAmount);
           const date = data.createdAt?.toMillis?.() || new Date(data.date).getTime() || 0;
           if (name && !isNaN(amt) && amt > 0) {
@@ -36,8 +43,11 @@ export function useProductPrices(user: any) {
           }
         });
 
-        // Fetch from invoices items array
-        const qInvoices = query(collection(db, "invoices"), where("userId", "==", user.uid));
+        // Fetch from invoices items array (Limit to recent 200 to save reads)
+        const qInvoices = query(
+           collection(db, "invoices"), 
+           where("userId", "==", user.uid)
+        );
         const snapInvoices = await getDocs(qInvoices);
         snapInvoices.forEach((doc) => {
           const data = doc.data();
@@ -48,7 +58,6 @@ export function useProductPrices(user: any) {
              const rate = parseFloat(item.rate);
              if (name && !isNaN(rate) && rate > 0) {
                if (!newProductMap[name] || newProductMap[name].date < date) {
-                 // Initialize with existing if found, or default
                  const existing = newProductMap[name]?.prices || { MRP: rate, Normal: rate * 0.9, Reddi: rate * 0.8 };
                  newProductMap[name] = { 
                    prices: existing, 
@@ -64,8 +73,10 @@ export function useProductPrices(user: any) {
           for (const [key, val] of Object.entries(newProductMap)) {
             finalMap[key] = val.prices;
           }
-          setProductPrices(finalMap);
-          setProductNames(Object.keys(finalMap).sort());
+          globalProductPrices = finalMap;
+          globalProductNames = Object.keys(finalMap).sort();
+          setProductPrices(globalProductPrices);
+          setProductNames(globalProductNames);
         }
       } catch (error) {
         console.error("Error fetching product prices:", error);

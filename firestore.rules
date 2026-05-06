@@ -6,86 +6,42 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
+    // High performance auth checks
+    function isOwner() {
+      return request.auth != null && resource.data.userId == request.auth.uid;
     }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function isValidEntry(data) {
-      return data.id is string &&
-             data.date is string &&
-             data.customerName is string &&
-             data.customerName.size() <= 100 &&
-             data.type in ['S', 'O', 'V', 'K', 'D', 'SU', 'OM'] &&
-             data.totalAmount is number &&
-             data.receivedAmount is number &&
-             data.pendingAmount is number &&
-             data.userId == request.auth.uid;
-    }
-
-    function isValidInvoice(data) {
-      return data.userId == request.auth.uid &&
-             data.customerName is string &&
-             data.invoiceDate is string;
-    }
-
-    function isValidSupportTicket(data) {
-      return data.name is string &&
-             data.name.size() > 0 &&
-             data.name.size() <= 100 &&
-             data.message is string &&
-             data.message.size() > 0 &&
-             data.message.size() <= 2000;
-             // userId is optional
+    
+    function isCreatingOwn() {
+      return request.auth != null && request.resource.data.userId == request.auth.uid;
     }
 
     // Entries collection
     match /entries/{entryId} {
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
-      
-      allow create: if isSignedIn() && 
-                     isValidId(entryId) && 
-                     isValidEntry(request.resource.data) &&
-                     request.resource.data.id == entryId;
-
-      allow update: if isSignedIn() && 
-                     resource.data.userId == request.auth.uid &&
-                     isValidEntry(request.resource.data) &&
-                     request.resource.data.userId == resource.data.userId;
-
-      allow delete: if isSignedIn() && 
-                     resource.data.userId == request.auth.uid;
+      allow read, delete: if isOwner();
+      allow create: if isCreatingOwn();
+      allow update: if isOwner() && isCreatingOwn();
     }
 
     // Invoices collection
     match /invoices/{invoiceId} {
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // List/Query requires ownership
+      allow list: if isOwner();
+      // Allow unrestricted get by ID to support shared view URLs
       allow get: if true;
-      allow create: if isSignedIn() && 
-                     isValidId(invoiceId) && 
-                     isValidInvoice(request.resource.data);
-      allow update: if isSignedIn() && 
-                     resource.data.userId == request.auth.uid &&
-                     isValidInvoice(request.resource.data) &&
-                     request.resource.data.userId == resource.data.userId;
-      allow delete: if isSignedIn() && 
-                     resource.data.userId == request.auth.uid;
+      allow create: if isCreatingOwn();
+      allow update: if isOwner() && isCreatingOwn();
+      allow delete: if isOwner();
     }
 
-    // Support tickets collection
+    // Stock collection
+    match /stock/{itemId} {
+      allow read, delete: if isOwner();
+      allow create: if isCreatingOwn();
+      allow update: if isOwner() && isCreatingOwn();
+    }
     match /support_tickets/{ticketId} {
-      allow create: if isValidId(ticketId) && 
-                       isValidSupportTicket(request.resource.data);
-      allow list, get, update, delete: if false; // Only allow creation for safety
+      allow create: if true; // Any user can submit feedback
+      allow read, update, delete: if false; 
     }
   }
 }
