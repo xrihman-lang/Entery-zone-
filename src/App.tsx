@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Printer, Trash2, Save, X, LogOut, User, Pencil, FileDown, Star } from 'lucide-react';
+import { Plus, Printer, Trash2, Save, X, LogOut, User, Pencil, FileDown, Star, MessageCircle, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -29,6 +29,7 @@ import {
 import { getFirebase } from './lib/firebase';
 import LoginPage from './components/LoginPage';
 import InvoiceGenerator from './components/InvoiceGenerator';
+import InvoiceHistory from './components/InvoiceHistory';
 
 // --- Error Handling Utility ---
 enum OperationType {
@@ -79,13 +80,47 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [localMode, setLocalMode] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice' | 'history'>('standard');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
   const [filterFromDate, setFilterFromDate] = useState('');
   const [filterToDate, setFilterToDate] = useState('');
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [supportName, setSupportName] = useState('');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportSaving, setSupportSaving] = useState(false);
+
+  const handleSupportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supportName || !supportMessage) {
+      alert("Please fill all fields.");
+      return;
+    }
+    setSupportSaving(true);
+    try {
+      const { db } = await getFirebase();
+      if (!db) throw new Error('Database not connected');
+      await addDoc(collection(db, 'support_tickets'), {
+        userId: user?.uid || null,
+        userEmail: user?.email || null,
+        name: supportName,
+        message: supportMessage,
+        createdAt: serverTimestamp(),
+      });
+      alert('Support ticket submitted successfully. We will contact you soon!');
+      setSupportName('');
+      setSupportMessage('');
+      setIsSupportOpen(false);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'support_tickets');
+    } finally {
+      setSupportSaving(false);
+    }
+  };
   
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -526,12 +561,24 @@ export default function App() {
               : 'text-gray-500 hover:text-gray-700 border-transparent'
             }`}
           >
-            Create Invoice
+            Generate Bill
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+              activeTab === 'history' 
+              ? 'bg-white border-green-600 text-green-600' 
+              : 'text-gray-500 hover:text-gray-700 border-transparent'
+            }`}
+          >
+            Invoice History
           </button>
         </div>
 
         {activeTab === 'invoice' ? (
-          <InvoiceGenerator user={user} />
+          <InvoiceGenerator user={user} onSaved={() => setActiveTab('standard')} />
+        ) : activeTab === 'history' ? (
+          <InvoiceHistory user={user} />
         ) : (
           <>
             {/* Input Form Section */}
@@ -878,9 +925,153 @@ export default function App() {
         )}
       </div>
 
-      <footer className="max-w-6xl mx-auto mt-8 text-center text-gray-400 text-sm print:hidden">
-        <p>&copy; {new Date().getFullYear()} Daily Daybook. Your data is securely stored in the cloud.</p>
+      <footer className="max-w-6xl mx-auto mt-8 mb-12 text-center text-gray-500 text-sm print:hidden">
+        <p className="mb-2">&copy; {new Date().getFullYear()} Daily Daybook. Your data is securely stored in the cloud.</p>
+        <div className="flex justify-center gap-4 text-xs font-semibold">
+          <button onClick={() => setIsAboutOpen(true)} className="hover:text-gray-800 hover:underline transition-colors focus:outline-none">About Us</button>
+          <span>&middot;</span>
+          <button onClick={() => setIsPrivacyOpen(true)} className="hover:text-gray-800 hover:underline transition-colors focus:outline-none">Privacy Policy</button>
+          <span>&middot;</span>
+          <button onClick={() => setIsSupportOpen(true)} className="hover:text-gray-800 hover:underline transition-colors focus:outline-none">Support</button>
+        </div>
       </footer>
+
+      {/* About Us Modal */}
+      {isAboutOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:hidden">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-8 relative animate-in fade-in zoom-in duration-200">
+            <button onClick={() => setIsAboutOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 className="text-2xl font-black text-gray-900 mb-4 tracking-tight">About Us</h2>
+            <div className="space-y-4 text-gray-600 leading-relaxed text-sm">
+              <p>
+                <strong className="text-gray-900">zishan gdx</strong> ek professional digital ledger aur billing solution hai jo chhote aur bade businesses ko unka hisaab-kitaab digital karne mein madad karta hai.
+              </p>
+              <p>
+                Hamara maksad billing ko aasan, fast, aur error-free banana hai taaki aap sirf apne business ki growth par focus kar saken. Paper registers aur manual hisaab ko bhool jaiye aur ek modern digital daybook ka anubhav lijiye.
+              </p>
+            </div>
+            <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+              <button onClick={() => setIsAboutOpen(false)} className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Policy Modal */}
+      {isPrivacyOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:hidden">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-8 relative overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in duration-200">
+            <button onClick={() => setIsPrivacyOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 className="text-2xl font-black text-gray-900 mb-6 tracking-tight">Privacy Policy</h2>
+            <div className="space-y-6 text-gray-600 text-sm">
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-start gap-4">
+                <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0"></div>
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-1">Data Security</h3>
+                  <p>Aapka saara data (Bills aur Daybook entries) Firebase ke secure cloud servers par save hota hai. Hum modern encryption methods use karte hain taaki aapka data poori tarah surakshit rahe.</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-start gap-4">
+                <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0"></div>
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-1">User Privacy</h3>
+                  <p>Hum aapka personal data aur sensitive business details kisi teesre bande (third party) ya advertiser ko kabhi nahi bechte.</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-start gap-4">
+                <div className="w-2 h-2 rounded-full bg-orange-500 mt-1.5 shrink-0"></div>
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-1">Google Login</h3>
+                  <p>Hum sirf login authentication (secure access) ke liye Google Authentication ka use karte hain, taaki password yaad rakhne ka jhanjhat na rahe.</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-start gap-4">
+                <div className="w-2 h-2 rounded-full bg-purple-500 mt-1.5 shrink-0"></div>
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-1">Your Control</h3>
+                  <p>User apna data kabhi bhi delete kar sakta hai aur jarurat padne par use as a PDF export karke apne paas rakh sakta hai.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+              <button onClick={() => setIsPrivacyOpen(false)} className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none">Understood</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Support Modal */}
+      {isSupportOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:hidden overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 relative my-8 animate-in fade-in zoom-in duration-200">
+            <button onClick={() => setIsSupportOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Support & Contact</h2>
+            <p className="text-gray-500 text-sm mb-6">Need help with the app? We are here for you.</p>
+
+            <a 
+              href="https://wa.me/917065162279?text=Hello%20zishan%20gdx%2C%20mujhe%20app%20mein%20kuch%20help%20chahiye." 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full bg-[#25D366] text-white py-3 px-4 rounded-xl font-bold hover:bg-[#128C7E] transition-colors mb-6 shadow-sm"
+            >
+              <MessageCircle size={20} />
+              Chat on WhatsApp
+            </a>
+
+            <div className="relative flex py-4 items-center">
+              <div className="flex-grow border-t border-gray-200"></div>
+              <span className="flex-shrink-0 mx-4 text-gray-400 text-xs font-semibold uppercase tracking-wider">Or leave a message</span>
+              <div className="flex-grow border-t border-gray-200"></div>
+            </div>
+
+            <form onSubmit={handleSupportSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Your Name</label>
+                <input 
+                  type="text" 
+                  value={supportName}
+                  onChange={(e) => setSupportName(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Message / Issue</label>
+                <textarea 
+                  value={supportMessage}
+                  onChange={(e) => setSupportMessage(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow min-h-[100px] resize-none"
+                  placeholder="Please describe your issue..."
+                  required
+                ></textarea>
+              </div>
+              <button 
+                type="submit" 
+                disabled={supportSaving}
+                className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-3 px-4 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {supportSaving ? 'Submitting...' : <><Send size={18} /> Submit Ticket</>}
+              </button>
+            </form>
+
+            <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+              <p className="text-xs text-gray-400 font-medium tracking-wide">Supported by zishan gdx Team.</p>
+              <p className="text-xs text-gray-400 mt-0.5">We usually reply within 24 hours.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Print styles */}
       <style>{`

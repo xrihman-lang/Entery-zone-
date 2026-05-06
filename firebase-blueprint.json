@@ -17,12 +17,52 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "date", "customerName", "type", "totalAmount", "userId"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "A generated bill/invoice for a customer",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "customerName": { "type": "string" },
+        "invoiceDate": { "type": "string", "format": "date" },
+        "billNo": { "type": "string" },
+        "subtotal": { "type": "number" },
+        "cgst": { "type": "number" },
+        "sgst": { "type": "number" },
+        "totalTax": { "type": "number" },
+        "grandTotal": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "customerName", "invoiceDate"]
+    },
+    "SupportTicket": {
+      "title": "Support Ticket",
+      "description": "A customer support ticket",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "name": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "message"]
     }
   },
   "firestore": {
     "/entries/{entryId}": {
       "schema": "Entry",
       "description": "Collection of all daybook entries across all users"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Collection of generated bills/invoices"
+    },
+    "/support_tickets/{ticketId}": {
+      "schema": "SupportTicket",
+      "description": "Customer support requests"
     }
   }
 }

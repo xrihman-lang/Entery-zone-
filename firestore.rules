@@ -31,6 +31,22 @@ service cloud.firestore {
              data.userId == request.auth.uid;
     }
 
+    function isValidInvoice(data) {
+      return data.userId == request.auth.uid &&
+             data.customerName is string &&
+             data.invoiceDate is string;
+    }
+
+    function isValidSupportTicket(data) {
+      return data.name is string &&
+             data.name.size() > 0 &&
+             data.name.size() <= 100 &&
+             data.message is string &&
+             data.message.size() > 0 &&
+             data.message.size() <= 2000;
+             // userId is optional
+    }
+
     // Entries collection
     match /entries/{entryId} {
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
@@ -48,6 +64,27 @@ service cloud.firestore {
 
       allow delete: if isSignedIn() && 
                      resource.data.userId == request.auth.uid;
+    }
+
+    // Invoices collection
+    match /invoices/{invoiceId} {
+      allow list, get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && 
+                     isValidId(invoiceId) && 
+                     isValidInvoice(request.resource.data);
+      allow update: if isSignedIn() && 
+                     resource.data.userId == request.auth.uid &&
+                     isValidInvoice(request.resource.data) &&
+                     request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && 
+                     resource.data.userId == request.auth.uid;
+    }
+
+    // Support tickets collection
+    match /support_tickets/{ticketId} {
+      allow create: if isValidId(ticketId) && 
+                       isValidSupportTicket(request.resource.data);
+      allow list, get, update, delete: if false; // Only allow creation for safety
     }
   }
 }
