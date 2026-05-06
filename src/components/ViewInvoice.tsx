@@ -255,18 +255,16 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
           `}
           </style>
 
-          {/* Global Print Watermark */}
-          <div className="hidden print:flex fixed inset-0 items-center justify-center pointer-events-none" style={{ zIndex: -100 }}>
-             <div className="transform -rotate-45 text-[120px] font-bold text-[#eee] whitespace-nowrap" style={{ opacity: 0.2 }}>
-                zishan gdx
-             </div>
+          {/* Global Watermark (Subtle on web, prominent on print) */}
+          <div className="watermark-text">
+             ZISHAN GDX
           </div>
           
           {/* Brand Header for Print */}
-          <div className="hidden print:flex print-fixed-header justify-between items-center">
-             <div>
+          <div className="hidden print:flex print-fixed-header justify-between items-center" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+             <div className="flex items-center">
                {invoice.brandName === 'zishan gdx' || invoice.brandName === 'ZISHAN GDX' || !invoice.brandName ? (
-                 <Logo iconClassName="w-12 h-12" textClassName="text-3xl" />
+                 <Logo iconClassName="w-12 h-12 print:block forced-color-adjust-preserve" textClassName="text-3xl font-black text-blue-600 print:text-blue-600" />
                ) : (
                  <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">{invoice.brandName}</h1>
                )}
