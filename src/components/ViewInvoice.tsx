@@ -6,43 +6,7 @@ import { Logo } from './Logo';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-function numberToWords(amount: number): string {
-  const single = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
-  const double = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
-  const tens = ["", "Ten", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-  const formatTenth = (digit: number, prev: number): string => {
-    return 0 === digit ? "" : " " + (1 === digit ? double[prev] : tens[digit]);
-  };
-  const formatOther = (digit: number, next: number, denom: string): string => {
-    return 0 !== digit && 1 !== next ? " " + single[digit] + denom : (0 !== next || 0 === digit ? "" : " " + single[digit] + denom);
-  };
-  const helper = (n: number): string => {
-    let res = "";
-    if (isNaN(n)) return "";
-    let str = n.toString();
-    const splitStr = str.split(".");
-    str = splitStr[0];
-    if (str.length > 9) return "Overflow";
-    
-    // Pad with zeros to 9 digits
-    const arr = ("000000000" + str).slice(-9).match(/.{1,2}(?=.{7})|.{1,2}(?=.{5})|.{1,2}(?=.{3})|.{1,3}/g);
-    if (!arr) return "";
-    res += formatOther(parseInt(arr[0][0]), parseInt(arr[0][1]), " Crore");
-    res += formatTenth(parseInt(arr[0][1]), parseInt(arr[0][0]));
-    res += formatOther(parseInt(arr[1][0]), parseInt(arr[1][1]), " Lakh");
-    res += formatTenth(parseInt(arr[1][1]), parseInt(arr[1][0]));
-    res += formatOther(parseInt(arr[2][0]), parseInt(arr[2][1]), " Thousand");
-    res += formatTenth(parseInt(arr[2][1]), parseInt(arr[2][0]));
-    res += formatOther(parseInt(arr[3][0]), parseInt(arr[3][1]), " Hundred");
-    res += formatTenth(parseInt(arr[3][1]), parseInt(arr[3][0]));
-    res += formatOther(parseInt(arr[3][2]), parseInt(arr[3][1]), "");
-    return res.trim();
-  };
-  
-  let num = Math.floor(amount);
-  if (num === 0) return "Zero Rupees Only";
-  return helper(num) + " Rupees Only";
-}
+import { numberToWords } from '../lib/numberToWords';
 
 export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
   const [invoice, setInvoice] = useState<any>(null);
