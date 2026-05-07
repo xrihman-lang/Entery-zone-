@@ -309,32 +309,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
 
       await batch.commit();
 
-      // --- Webhook Integration for n8n ---
-      const webhookUrl = 'https://zishangdx.app.n8n.cloud/webhook-test/0f0d244e-232a-4d45-a123-9398a245d177';
-      try {
-        await fetch(webhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            customerName: customerName,
-            mobileNumber: customerPhone,
-            totalAmount: grandTotal,
-            itemsList: items.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-              rate: item.rate,
-              total: item.quantity * item.rate
-            }))
-          }),
-        });
-        showToast('Order Submitted & Bill Saved Successfully!');
-      } catch (webhookErr) {
-        console.error('Webhook failed:', webhookErr);
-        // Still show success for DB save but maybe mention webhook issue in console
-        showToast('Bill Saved Successfully! (Notification failed)');
-      }
+      showToast('Bill Saved Successfully! Stock deducted.');
       // Auto refresh form
       setCustomerName('');
       setCustomerPhone('');

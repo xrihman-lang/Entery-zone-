@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Printer, Trash2, Save, X, LogOut, User, Pencil, FileDown, Star, MessageCircle, Send } from 'lucide-react';
+import { Plus, Printer, Trash2, Save, X, LogOut, User, Pencil, FileDown, Star, MessageCircle, Send, Crown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -34,6 +34,8 @@ import LoginPage from './components/LoginPage';
 import InvoiceGenerator from './components/InvoiceGenerator';
 import InvoiceHistory from './components/InvoiceHistory';
 import { StockManager } from './components/StockManager';
+import SubscriptionModal from './components/SubscriptionModal';
+import { usePremiumStatus } from './hooks/usePremiumStatus';
 import { Logo } from './components/Logo';
 import { useProductPrices } from './hooks/useProductPrices';
 import { useLocalDate, getLocalDateString } from './hooks/useLocalDate';
@@ -108,6 +110,8 @@ export default function App() {
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const { isPremium, loading: premiumLoading } = usePremiumStatus(user);
   const [bulkInput, setBulkInput] = useState('');
   const [bulkPreview, setBulkPreview] = useState<Entry[]>([]);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
@@ -705,6 +709,13 @@ export default function App() {
             >
               <FileDown size={16} />
               Report
+            </button>
+            <button 
+              onClick={() => setIsSubscriptionModalOpen(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black border border-yellow-600 px-3 py-2 rounded-lg font-bold hover:from-yellow-400 hover:to-yellow-500 transition-colors shadow-sm text-sm"
+            >
+              <Crown size={16} />
+              Premium
             </button>
             {user ? (
               <button 
@@ -1377,6 +1388,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Subscription Modal */}
+      <SubscriptionModal isOpen={isSubscriptionModalOpen} onClose={() => setIsSubscriptionModalOpen(false)} />
 
       {/* Print styles */}
       <style>{`
