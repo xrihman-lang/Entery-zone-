@@ -37,7 +37,7 @@ export default function SubscriptionModal({ isOpen, onClose, user }: { isOpen: b
       }
 
       const options = {
-          key: "rzp_test_YourTestKeyHere", // Provided as generic, no real secret used. It's a standard mock for dev.
+          key: "rzp_live_SmYl9h1s1WboEw", // Provided as generic, no real secret used. It's a standard mock for dev.
           amount: amount * 100,
           currency: "INR",
           name: "Zishan GDX",
