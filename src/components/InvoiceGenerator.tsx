@@ -372,11 +372,14 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       <style>
       {`
         @media print {
-          @page { size: A4 portrait; margin: 15mm; }
+          @page { size: auto; margin: 10mm; }
+          body { height: auto !important; overflow: visible !important; }
           .print\\:flex { display: flex !important; }
           .print-fixed-header { position: fixed; top: 0; left: 0; right: 0; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 15px; }
           .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 40px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; }
-          .print-content-spacer { padding-top: 80px; padding-bottom: 60px; }
+          .print-content-spacer { padding-top: 20px; padding-bottom: 20px; height: auto !important; }
+          table { page-break-inside: auto; }
+          tr { page-break-inside: avoid; page-break-after: auto; }
         }
       `}
       </style>
