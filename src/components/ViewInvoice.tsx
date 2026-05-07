@@ -308,10 +308,10 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
                </tbody>
              </table>
 
-             <div className="flex flex-col md:flex-row justify-between items-start gap-6 print:flex-row">
-                <div className="w-full md:w-1/2 mt-2 print:w-1/2">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Amount in Words:</p>
-                  <p className="font-bold text-gray-900 text-xs uppercase italic p-2 bg-gray-50 border border-gray-200 rounded print:border-none print:px-0 print:bg-transparent">{numberToWords(invoice.grandTotal)}</p>
+             <div className="flex flex-col md:flex-row justify-between items-start gap-6 print:flex-col print:items-end print:text-right">
+                <div className="w-full md:w-1/2 mt-2 print:w-1/2 print:text-left print:mr-auto">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 print:text-black text-xs">Amount in Words:</p>
+                  <p className="font-bold text-gray-900 text-xs uppercase italic p-2 bg-gray-50 border border-gray-200 rounded print:border-none print:px-0 print:bg-transparent print:text-black">{numberToWords(invoice.grandTotal)}</p>
                 </div>
                 
                 <div className="w-full md:w-2/5 print:w-2/5">

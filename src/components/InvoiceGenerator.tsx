@@ -671,27 +671,27 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between gap-8 py-4 border-t-2 border-gray-800 dark:border-gray-200 print:border-none print:py-0">
+        <div className="flex flex-col md:flex-row justify-between gap-8 py-4 border-t-2 border-gray-800 dark:border-gray-200 print:border-none print:py-0 print:items-end print:text-right">
            
-           <div className="w-full md:w-1/2 ml-auto">
+           <div className="w-full md:w-1/2 ml-auto print:w-1/2 print:ml-auto">
               <div className="bg-gray-50 p-6 rounded border border-gray-200 print:bg-transparent print:border-none print:p-0">
-                 <div className="flex justify-between mb-2">
-                    <span className="font-bold text-gray-600">Total Qty (Dabba):</span>
-                    <span className="font-black text-gray-900 border-b-2 border-blue-200">{totalQty}</span>
+                 <div className="flex justify-between mb-2 print:text-black">
+                    <span className="font-bold text-gray-600 print:text-black">Total Qty (Dabba):</span>
+                    <span className="font-black text-gray-900 border-b-2 border-blue-200 print:text-black print:border-gray-800">{totalQty}</span>
                  </div>
-                 <div className="flex justify-between mb-2">
-                    <span className="font-bold text-gray-600 text-sm">Taxable Subtotal:</span>
-                    <span className="font-mono text-gray-800 text-sm">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                <div className="flex justify-between mb-2 print:text-black">
+                    <span className="font-bold text-gray-600 print:text-black text-sm">Taxable Subtotal:</span>
+                    <span className="font-mono text-gray-800 print:text-black text-sm">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                  </div>
                  {gstEnabled && totalTax > 0 && (
                     <>
-                      <div className="flex justify-between mb-2 text-xs">
-                         <span className="font-medium text-gray-600">Total CGST:</span>
-                         <span className="font-mono text-gray-800">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <div className="flex justify-between mb-2 text-xs print:text-black">
+                         <span className="font-medium text-gray-600 print:text-black">Total CGST:</span>
+                         <span className="font-mono text-gray-800 print:text-black">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
-                      <div className="flex justify-between mb-4 border-b border-gray-300 pb-2 text-xs">
-                         <span className="font-medium text-gray-600">Total SGST:</span>
-                         <span className="font-mono text-gray-800">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <div className="flex justify-between mb-4 border-b border-gray-300 pb-2 text-xs print:text-black print:border-gray-800">
+                         <span className="font-medium text-gray-600 print:text-black">Total SGST:</span>
+                         <span className="font-mono text-gray-800 print:text-black">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
                     </>
                  )}
@@ -709,7 +709,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                     </div>
                  </div>
                  {discountPercent > 0 && (
-                    <div className="flex justify-between mb-2 text-sm text-green-600 text-green-700">
+                    <div className="flex justify-between mb-2 text-sm text-green-700 print:text-black border-b border-gray-200 pb-2 print:border-gray-800">
                        <span className="font-bold">Discount ({discountPercent}%):</span>
                        <span className="font-mono font-bold">-₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
