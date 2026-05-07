@@ -5,6 +5,11 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+body {
+  background-color: #050505;
+  color: #eeeeee;
+}
+
 /* Print Optimization */
 @media print {
   body {

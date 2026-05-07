@@ -108,6 +108,8 @@ export default function App() {
   const prevLocalDate = React.useRef(localDate);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [isRefundOpen, setIsRefundOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
@@ -656,8 +658,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-2 md:p-4 font-sans print:p-0 print:bg-white">
-      <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden print:overflow-visible print:shadow-none print:m-0">
+    <div className="min-h-screen bg-[#050505] p-2 md:p-4 font-sans text-gray-200 print:p-0 print:bg-white print:text-black">
+      <div className="max-w-6xl mx-auto bg-[#111111] border border-[#d4af37]/20 shadow-2xl rounded-lg overflow-hidden print:overflow-visible print:shadow-none print:m-0 print:border-none">
         
         {/* Toast Notifications */}
         <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
@@ -680,16 +682,16 @@ export default function App() {
         </div>
 
         {/* Header */}
-        <header className="bg-white border-b border-gray-100 p-4 flex flex-col items-center md:flex-row justify-between gap-4 print:hidden rounded-t-lg">
+        <header className="bg-[#1a1a1a] border-b border-[#d4af37]/30 p-4 flex flex-col items-center md:flex-row justify-between gap-4 print:hidden rounded-t-lg">
           <div className="flex items-center gap-4">
-            <Logo iconClassName="w-12 h-12" textClassName="text-2xl" />
-            <div className="border-l-2 border-gray-100 pl-4">
-              <h1 className="text-xl font-bold tracking-tight text-gray-800">Daily Daybook</h1>
-              <p className="text-gray-500 print:hidden text-sm mt-0.5 font-medium">
+            <Logo iconClassName="w-12 h-12 text-[#d4af37]" textClassName="text-2xl text-[#d4af37]" />
+            <div className="border-l-2 border-[#d4af37]/30 pl-4">
+              <h1 className="text-xl font-bold tracking-tight text-[#d4af37]">Zishan GDX</h1>
+              <p className="text-gray-400 print:hidden text-sm mt-0.5 font-medium">
                 {user ? `Welcome, ${user.displayName || user.email}` : 'Guest Mode (Local Only)'}
               </p>
               {!user && (
-                <div className="mt-1 inline-flex items-center gap-1 bg-amber-100/50 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border border-amber-200 print:hidden">
+                <div className="mt-1 inline-flex items-center gap-1 bg-[#d4af37]/10 text-[#d4af37] text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border border-[#d4af37]/30 print:hidden">
                   <X size={10} /> Not Syncing
                 </div>
               )}
@@ -698,21 +700,21 @@ export default function App() {
           <div className="flex gap-2 print:hidden">
             <button 
               onClick={handlePrint}
-              className="flex items-center gap-2 bg-gray-50 text-gray-700 border border-gray-200 px-3 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors shadow-sm text-sm"
+              className="flex items-center gap-2 bg-[#222] text-[#d4af37] border border-[#d4af37]/30 px-3 py-2 rounded-lg font-bold hover:bg-[#333] transition-colors shadow-sm text-sm"
             >
               <Printer size={16} />
               Print
             </button>
             <button 
               onClick={generatePDF}
-              className="flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 px-3 py-2 rounded-lg font-bold hover:bg-green-100 transition-colors shadow-sm text-sm"
+              className="flex items-center gap-2 bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/30 px-3 py-2 rounded-lg font-bold hover:bg-[#d4af37]/20 transition-colors shadow-sm text-sm"
             >
               <FileDown size={16} />
               Report
             </button>
             <button 
               onClick={() => setIsSubscriptionModalOpen(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black border border-yellow-600 px-3 py-2 rounded-lg font-bold hover:from-yellow-400 hover:to-yellow-500 transition-colors shadow-sm text-sm"
+              className="flex items-center gap-2 bg-gradient-to-r from-[#d4af37] to-[#f1c40f] text-black border border-yellow-600 px-3 py-2 rounded-lg font-bold hover:from-yellow-400 hover:to-yellow-500 transition-colors shadow-sm text-sm"
             >
               <Crown size={16} />
               Premium
@@ -720,7 +722,7 @@ export default function App() {
             {user ? (
               <button 
                 onClick={handleSignOut}
-                className="flex items-center gap-2 bg-gray-50 text-blue-600 border border-gray-200 px-3 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors shadow-sm text-sm"
+                className="flex items-center gap-2 bg-[#222] text-[#d4af37] border border-[#d4af37]/30 px-3 py-2 rounded-lg font-bold hover:bg-[#333] transition-colors shadow-sm text-sm"
               >
                 <LogOut size={16} />
                 Sign Out
@@ -728,7 +730,7 @@ export default function App() {
             ) : (
               <button 
                 onClick={() => setLocalMode(false)}
-                className="flex items-center gap-2 bg-blue-600 text-white border border-blue-600 px-3 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-sm"
+                className="flex items-center gap-2 bg-[#d4af37] text-black border border-[#d4af37] px-3 py-2 rounded-lg font-bold hover:bg-[#f1c40f] transition-colors shadow-sm text-sm"
               >
                 <User size={16} />
                 Login
@@ -739,9 +741,9 @@ export default function App() {
 
         {/* Print-only Header */}
         <div className="hidden print:flex flex-col items-center justify-center p-8 mb-4 border-b border-gray-400">
-          <p className="text-xs text-gray-400 mb-2 uppercase tracking-widest">Official Report by zishan gdx</p>
-          <h1 className="text-4xl font-bold uppercase tracking-widest text-black">Daily Daybook Report</h1>
-          <p className="text-gray-500 mt-2 text-lg font-medium tracking-widest uppercase">Powered by zishan gdx</p>
+          <p className="text-xs text-gray-400 mb-2 uppercase tracking-widest">Official Report by Zishan GDX</p>
+          <h1 className="text-4xl font-bold uppercase tracking-widest text-black">Zishan GDX Report</h1>
+          <p className="text-gray-500 mt-2 text-lg font-medium tracking-widest uppercase">Powered by Zishan GDX</p>
           <div className="mt-4 text-sm text-gray-500 font-medium font-mono">
             PERIOD: {filterMonth === 0 ? 'ALL MONTHS' : new Date(filterYear, filterMonth - 1).toLocaleString('default', { month: 'long' }).toUpperCase()} {filterYear}
           </div>
@@ -1242,13 +1244,17 @@ export default function App() {
       </div>
 
       <footer className="max-w-6xl mx-auto mt-8 mb-12 text-center text-gray-500 text-sm print:hidden">
-        <p className="mb-2">&copy; {new Date().getFullYear()} Daily Daybook. Your data is securely stored in the cloud.</p>
-        <div className="flex justify-center gap-4 text-xs font-semibold">
+        <p className="mb-2">&copy; {new Date().getFullYear()} Zishan GDX. Your data is securely stored in the cloud.</p>
+        <div className="flex justify-center items-center gap-2 md:gap-4 text-xs font-semibold flex-wrap px-4">
           <button onClick={() => setIsAboutOpen(true)} className="hover:text-gray-800 hover:underline transition-colors focus:outline-none">About Us</button>
           <span>&middot;</span>
           <button onClick={() => setIsPrivacyOpen(true)} className="hover:text-gray-800 hover:underline transition-colors focus:outline-none">Privacy Policy</button>
           <span>&middot;</span>
-          <button onClick={() => setIsSupportOpen(true)} className="hover:text-gray-800 hover:underline transition-colors focus:outline-none">Support</button>
+          <button onClick={() => setIsTermsOpen(true)} className="hover:text-gray-800 hover:underline transition-colors focus:outline-none">Terms & Conditions</button>
+          <span>&middot;</span>
+          <button onClick={() => setIsRefundOpen(true)} className="hover:text-gray-800 hover:underline transition-colors focus:outline-none">Refund & Cancellation</button>
+          <span>&middot;</span>
+          <button onClick={() => setIsSupportOpen(true)} className="hover:text-gray-800 hover:underline transition-colors focus:outline-none">Contact Us</button>
         </div>
       </footer>
 
@@ -1324,6 +1330,74 @@ export default function App() {
         </div>
       )}
 
+      {/* Terms & Conditions Modal */}
+      {isTermsOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:hidden overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-8 relative max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+            <button onClick={() => setIsTermsOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 className="text-2xl font-black text-gray-900 mb-6 tracking-tight">Terms & Conditions</h2>
+            <div className="space-y-6 text-gray-600 text-sm">
+              <p>Welcome to Zishan GDX. By accessing and using our application, you accept and agree to be bound by the terms and provision of this agreement.</p>
+              
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-start gap-4">
+                <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0"></div>
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-1">Service Usage</h3>
+                  <p>You agree to use this service only for lawful purposes, and in a way that does not infringe the rights of, restrict or inhibit anyone else's use and enjoyment of Zishan GDX.</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-start gap-4">
+                <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0"></div>
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-1">Account Responsibility</h3>
+                  <p>You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+              <button onClick={() => setIsTermsOpen(false)} className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none">Understood</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Refund & Cancellation Policy Modal */}
+      {isRefundOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:hidden overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-8 relative max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+            <button onClick={() => setIsRefundOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 className="text-2xl font-black text-gray-900 mb-6 tracking-tight">Refund & Cancellation Policy</h2>
+            <div className="space-y-6 text-gray-600 text-sm">
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-start gap-4">
+                <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0"></div>
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-1">Non-Refundable</h3>
+                  <p>Digital services are non-refundable once activated. Due to the nature of digital goods and subscriptions, all sales are final.</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-start gap-4">
+                <div className="w-2 h-2 rounded-full bg-orange-500 mt-1.5 shrink-0"></div>
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-1">Cancellation</h3>
+                  <p>You may cancel your subscription at any time, but your premium access will remain active until the end of your current billing period. No partial refunds will be provided.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+              <button onClick={() => setIsRefundOpen(false)} className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none">Understood</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Support Modal */}
       {isSupportOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:hidden overflow-y-auto">
@@ -1334,8 +1408,23 @@ export default function App() {
             <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Support & Contact</h2>
             <p className="text-gray-500 text-sm mb-6">Need help with the app? We are here for you.</p>
 
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6 space-y-3">
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase">Email Us</h3>
+                <p className="text-gray-900 font-medium">Xrihman@gmail.com</p>
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase">Call or WhatsApp</h3>
+                <p className="text-gray-900 font-medium">+91 7075162279</p>
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase">Business</h3>
+                <p className="text-gray-900 font-medium">Zishan GDX</p>
+              </div>
+            </div>
+
             <a 
-              href="https://wa.me/917065162279?text=Hello%20zishan%20gdx%2C%20mujhe%20app%20mein%20kuch%20help%20chahiye." 
+              href="https://wa.me/917075162279?text=Hello%20Zishan%20GDX%2C%20mujhe%20app%20mein%20kuch%20help%20chahiye." 
               target="_blank" 
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full bg-[#25D366] text-white py-3 px-4 rounded-xl font-bold hover:bg-[#128C7E] transition-colors mb-6 shadow-sm"
@@ -1382,7 +1471,7 @@ export default function App() {
             </form>
 
             <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-              <p className="text-xs text-gray-400 font-medium tracking-wide">Supported by zishan gdx Team.</p>
+              <p className="text-xs text-gray-400 font-medium tracking-wide">Supported by Zishan GDX Team.</p>
               <p className="text-xs text-gray-400 mt-0.5">We usually reply within 24 hours.</p>
             </div>
           </div>
@@ -1390,7 +1479,7 @@ export default function App() {
       )}
 
       {/* Subscription Modal */}
-      <SubscriptionModal isOpen={isSubscriptionModalOpen} onClose={() => setIsSubscriptionModalOpen(false)} />
+      <SubscriptionModal isOpen={isSubscriptionModalOpen} onClose={() => setIsSubscriptionModalOpen(false)} user={user} />
 
       {/* Print styles */}
       <style>{`

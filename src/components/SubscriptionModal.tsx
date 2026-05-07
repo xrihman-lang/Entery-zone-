@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { doc, setDoc } from 'firebase/firestore';
+import { getFirebase } from '../lib/firebase';
 
-export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+const loadRazorpay = () => new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+});
+
+export default function SubscriptionModal({ isOpen, onClose, user }: { isOpen: boolean, onClose: () => void, user: any }) {
   const launchDate = new Date("2026-05-10T00:00:00Z");
   const [isLaunched, setIsLaunched] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const launched = new Date() >= launchDate;
@@ -15,6 +26,64 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
       setShowOverlay(!launched);
     }
   }, [isOpen]);
+
+  const handlePayment = async (planName: string, amount: number, months: number) => {
+      setIsProcessing(true);
+      const res = await loadRazorpay();
+      if (!res) {
+          alert('Razorpay SDK failed to load. Are you online?');
+          setIsProcessing(false);
+          return;
+      }
+
+      const options = {
+          key: "rzp_test_YourTestKeyHere", // Provided as generic, no real secret used. It's a standard mock for dev.
+          amount: amount * 100,
+          currency: "INR",
+          name: "Zishan GDX",
+          description: `${planName} Subscription`,
+          image: "https://your-logo-url.com/logo.png",
+          handler: async function (response: any) {
+              if (!user) {
+                  alert("Please login first.");
+                  return;
+              }
+              try {
+                  const { db } = await getFirebase();
+                  if (!db) throw new Error("Firebase DB not available");
+
+                  const expiryDate = new Date();
+                  expiryDate.setMonth(expiryDate.getMonth() + months);
+
+                  await setDoc(doc(db, 'users', user.uid), {
+                      isPremium: true,
+                      premiumExpiryDate: expiryDate.toISOString(),
+                      updatedAt: new Date().toISOString()
+                  }, { merge: true });
+
+                  alert("Payment Successful! You are now a Premium user.");
+                  onClose();
+              } catch (error) {
+                  console.error("Error updating user status:", error);
+                  alert("Payment recorded, but failed to update status. Please contact support.");
+              }
+          },
+          prefill: {
+              name: user?.displayName || "",
+              email: user?.email || "",
+          },
+          theme: {
+              color: "#d4af37"
+          }
+      };
+
+      const rzp1 = new (window as any).Razorpay(options);
+      rzp1.on('payment.failed', function (response: any) {
+          alert("Payment Failed: " + response.error.description);
+      });
+      rzp1.open();
+      setIsProcessing(false);
+  };
 
   if (!isOpen) return null;
 
@@ -162,26 +231,40 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
             <div className="card-3d w-full max-w-sm" style={{ animationDelay: '0.2s' }}>
                 <h3 className="text-2xl font-bold mb-2">Basic Plan</h3>
                 <h1 className="gold-glow text-5xl">₹1,500<span className="text-xl text-gray-400 font-normal">/mo</span></h1>
-                <button className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} disabled={!isLaunched}>
-                    {isLaunched ? "Buy Now" : "Pre-register"}
+                <p className="text-gray-300 mt-2 italic text-sm mb-4">"Start your journey"</p>
+                <button 
+                    className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
+                    disabled={!isLaunched || isProcessing}
+                    onClick={() => isLaunched && handlePayment('Basic', 1500, 1)}
+                >
+                    {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
                 </button>
             </div>
 
             <div className="card-3d w-full max-w-sm" style={{ animationDelay: '0.4s', border: '2px solid #d4af37' }}>
-                <span style={{ position: 'absolute', top: '0', background: '#d4af37', color: '#000', padding: '4px 15px', borderRadius: '0 0 10px 10px', fontSize: '12px', fontWeight: 'bold' }}>VIP CHOICE</span>
+                <span style={{ position: 'absolute', top: '0', background: '#d4af37', color: '#000', padding: '4px 15px', borderRadius: '0 0 10px 10px', fontSize: '12px', fontWeight: 'bold' }}>Recommended</span>
                 <h3 className="text-2xl font-bold mb-2 mt-4">Business Elite</h3>
                 <h1 className="gold-glow text-5xl">₹9,999<span className="text-xl text-gray-400 font-normal">/yr</span></h1>
-                <p className="text-gray-300 mt-2">Full AI & Voice Support</p>
-                <button className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} disabled={!isLaunched}>
-                    {isLaunched ? "Buy Now" : "Pre-register"}
+                <p className="text-gray-300 mt-2 italic text-sm mb-4">"Best Value"</p>
+                <button 
+                    className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
+                    disabled={!isLaunched || isProcessing}
+                    onClick={() => isLaunched && handlePayment('Business', 9999, 12)}
+                >
+                    {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
                 </button>
             </div>
 
             <div className="card-3d w-full max-w-sm" style={{ animationDelay: '0.6s' }}>
                 <h3 className="text-2xl font-bold mb-2">Professional</h3>
                 <h1 className="gold-glow text-5xl">₹3,500<span className="text-xl text-gray-400 font-normal">/3mo</span></h1>
-                <button className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} disabled={!isLaunched}>
-                    {isLaunched ? "Buy Now" : "Pre-register"}
+                <p className="text-gray-300 mt-2 italic text-sm mb-4">"Most Popular"</p>
+                <button 
+                    className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
+                    disabled={!isLaunched || isProcessing}
+                    onClick={() => isLaunched && handlePayment('Professional', 3500, 3)}
+                >
+                    {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
                 </button>
             </div>
         </div>
