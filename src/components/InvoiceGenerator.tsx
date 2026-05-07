@@ -328,6 +328,31 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
 
       await batch.commit();
 
+      // --- Webhook Integration for n8n ---
+      try {
+        const webhookUrl = 'https://zishangdx.app.n8n.cloud/webhook-test/0f0d244e-232a-4d45-a123-9398a245d177';
+        await fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customerName: customerName,
+            mobileNumber: customerPhone,
+            totalAmount: grandTotal,
+            itemsList: items.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              rate: item.rate,
+              total: item.quantity * item.rate
+            }))
+          }),
+        });
+      } catch (webhookErr) {
+        console.error('Webhook failed:', webhookErr);
+        // We continue since the database save was already successful
+      }
+
       showToast('Bill Saved Successfully! Stock deducted.');
       // Auto refresh form
       setCustomerName('');
@@ -346,7 +371,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   };
 
   return (
-    <div className="relative bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-none print:m-0">
+    <div className="relative bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-none print:m-0 print:overflow-visible print:h-auto">
       
       {/* Toast Notifications */}
       <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
@@ -372,14 +397,19 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       <style>
       {`
         @media print {
-          @page { size: auto; margin: 10mm; }
-          body { height: auto !important; overflow: visible !important; }
+          @page { size: auto; margin: 5mm 10mm; }
+          html, body { height: auto !important; overflow: visible !important; min-height: 100% !important; margin: 0 !important; padding: 0 !important; }
           .print\\:flex { display: flex !important; }
-          .print-fixed-header { position: fixed; top: 0; left: 0; right: 0; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 15px; }
-          .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 40px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; }
-          .print-content-spacer { padding-top: 20px; padding-bottom: 20px; height: auto !important; }
-          table { page-break-inside: auto; }
+          .print-fixed-header { position: fixed; top: 0; left: 0; right: 0; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 8px; }
+          .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 25px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; font-size: 8px; padding: 0 10mm; }
+          .print-content-spacer { padding-top: 55px; padding-bottom: 35px; height: auto !important; display: block !important; overflow: visible !important; }
+          table { page-break-inside: auto; width: 100%; border-collapse: collapse; table-layout: fixed; }
           tr { page-break-inside: avoid; page-break-after: auto; }
+          thead { display: table-header-group; }
+          tfoot { display: table-footer-group; }
+          .watermark-text { position: fixed; pointer-events: none; }
+          input, select, textarea { border: none !important; padding: 0 !important; background: transparent !important; appearance: none !important; -webkit-appearance: none; }
+          .print\\:hidden { display: none !important; }
         }
       `}
       </style>
