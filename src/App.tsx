@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Printer, Trash2, Save, X, LogOut, User, Pencil, FileDown, Star, MessageCircle, Send, Crown } from 'lucide-react';
+import { Plus, Printer, Trash2, Save, X, LogOut, User, Pencil, FileDown, Star, MessageCircle, Send, Crown, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -36,6 +36,9 @@ import InvoiceHistory from './components/InvoiceHistory';
 import { StockManager } from './components/StockManager';
 import SubscriptionModal from './components/SubscriptionModal';
 import { usePremiumStatus } from './hooks/usePremiumStatus';
+import { B2BOrderPage } from './components/B2BOrderPage';
+import { CustomerLedger } from './components/CustomerLedger';
+import { AdminDashboard } from './components/AdminDashboard';
 import { Logo } from './components/Logo';
 import { useProductPrices } from './hooks/useProductPrices';
 import { useLocalDate, getLocalDateString } from './hooks/useLocalDate';
@@ -93,10 +96,16 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [localMode, setLocalMode] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice' | 'history' | 'stock'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice' | 'history' | 'stock' | 'b2b' | 'khata' | 'admin'>('standard');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Admin logic
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const isAdminEmail = user?.email === 'xrihman@gmail.com';
+
   // Use dynamically updated localDate instead of static initialization
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
@@ -157,7 +166,37 @@ export default function App() {
       setSupportSaving(false);
     }
   };
-  
+
+  const handleAdminTitleClick = () => {
+    if (isAdminEmail) {
+      if (isAdminAuthenticated) {
+        setActiveTab('admin');
+      } else {
+        setIsAdminModalOpen(true);
+      }
+    } else {
+      if (!user) {
+        showToast('You must be logged in as an Admin (Local Guest mode restricts this).', 'error');
+      } else {
+        showToast('Unauthorized. You are not an admin.', 'error');
+      }
+    }
+  };
+
+  const handleAdminAuth = (e: React.FormEvent) => {
+    e.preventDefault();
+    const storedPassword = localStorage.getItem('admin_password') || 'zishan@001';
+    if (adminPasswordInput === storedPassword) {
+      setIsAdminAuthenticated(true);
+      setIsAdminModalOpen(false);
+      setAdminPasswordInput('');
+      setActiveTab('admin');
+      showToast('Admin access granted');
+    } else {
+      showToast('Incorrect password', 'error');
+    }
+  };
+
   const [formData, setFormData] = useState({
     date: getLocalDateString(),
     customerName: '',
@@ -684,9 +723,13 @@ export default function App() {
         {/* Header */}
         <header className="bg-white border-b border-gray-200 p-4 flex flex-col items-center md:flex-row justify-between gap-4 print:hidden rounded-t-lg">
           <div className="flex items-center gap-4">
-            <Logo iconClassName="w-12 h-12 text-blue-600" textClassName="text-2xl text-gray-900" />
+            <div onClick={handleAdminTitleClick} className="cursor-pointer">
+              <Logo iconClassName="w-12 h-12 text-blue-600" textClassName="text-2xl text-gray-900" />
+            </div>
             <div className="border-l-2 border-gray-200 pl-4">
-              <h1 className="text-xl font-bold tracking-tight text-gray-900">Zishan GDX</h1>
+              <h1 onClick={handleAdminTitleClick} className="text-xl font-bold tracking-tight text-gray-900 cursor-pointer hover:text-blue-600 transition-colors">
+                Zishan GDX
+              </h1>
               <p className="text-gray-500 print:hidden text-sm mt-0.5 font-medium">
                 {user ? `Welcome, ${user.displayName || user.email}` : 'Guest Mode (Local Only)'}
               </p>
@@ -755,10 +798,10 @@ export default function App() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-gray-100 border-b border-gray-200 print:hidden">
+        <div className="flex bg-gray-100 border-b border-gray-200 print:hidden overflow-x-auto">
           <button
             onClick={() => setActiveTab('standard')}
-            className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
               activeTab === 'standard' 
               ? 'bg-white border-blue-600 text-blue-600' 
               : 'text-gray-500 hover:text-gray-700 border-transparent'
@@ -768,7 +811,7 @@ export default function App() {
           </button>
           <button
             onClick={() => setActiveTab('vrs')}
-            className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
               activeTab === 'vrs' 
               ? 'bg-white border-purple-600 text-purple-600' 
               : 'text-gray-500 hover:text-gray-700 border-transparent'
@@ -778,7 +821,7 @@ export default function App() {
           </button>
           <button
             onClick={() => setActiveTab('invoice')}
-            className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ml-auto ${
+            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
               activeTab === 'invoice' 
               ? 'bg-white border-blue-600 text-blue-600' 
               : 'text-gray-500 hover:text-gray-700 border-transparent'
@@ -788,7 +831,7 @@ export default function App() {
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
               activeTab === 'history' 
               ? 'bg-white border-green-600 text-green-600' 
               : 'text-gray-500 hover:text-gray-700 border-transparent'
@@ -798,7 +841,7 @@ export default function App() {
           </button>
           <button
             onClick={() => setActiveTab('stock')}
-            className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
               activeTab === 'stock' 
               ? 'bg-white border-orange-600 text-orange-600' 
               : 'text-gray-500 hover:text-gray-700 border-transparent'
@@ -806,9 +849,47 @@ export default function App() {
           >
             Stock
           </button>
+          <button
+            onClick={() => setActiveTab('b2b')}
+            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+              activeTab === 'b2b' 
+              ? 'bg-white border-blue-600 text-blue-600' 
+              : 'text-gray-500 hover:text-gray-700 border-transparent'
+            }`}
+          >
+            B2B Order
+          </button>
+          <button
+            onClick={() => {
+              if (!isAdminEmail && !isAdminAuthenticated) {
+                showToast('Access Denied. Only Admin can manage Khata.', 'error');
+                return;
+              }
+              setActiveTab('khata');
+            }}
+            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+              activeTab === 'khata' 
+              ? 'bg-white border-red-600 text-red-600' 
+              : 'text-red-500 hover:text-red-700 border-transparent'
+            }`}
+          >
+            Digital Khata {(!isAdminEmail && !isAdminAuthenticated) && '(Locked)'}
+          </button>
         </div>
 
-        {activeTab === 'invoice' ? (
+        {activeTab === 'admin' ? (
+          <AdminDashboard />
+        ) : activeTab === 'khata' ? (
+          <CustomerLedger />
+        ) : activeTab === 'b2b' ? (
+          <B2BOrderPage 
+            onCheckout={(items) => {
+              // Add simple functionality to route to generate bill
+              setActiveTab('invoice');
+              // To properly pass items we'd need more state, but for now we just change tab
+            }} 
+          />
+        ) : activeTab === 'invoice' ? (
           <InvoiceGenerator user={user} onSaved={() => setActiveTab('standard')} />
         ) : activeTab === 'history' ? (
           <InvoiceHistory user={user} />
@@ -1474,6 +1555,42 @@ export default function App() {
               <p className="text-xs text-gray-400 font-medium tracking-wide">Supported by Zishan GDX Team.</p>
               <p className="text-xs text-gray-400 mt-0.5">We usually reply within 24 hours.</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Auth Modal */}
+      {isAdminModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm border border-red-100">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-black text-2xl text-gray-900 flex items-center gap-2">
+                <ShieldAlert className="text-red-600" /> System Admin
+              </h3>
+              <button onClick={() => setIsAdminModalOpen(false)} className="text-gray-400 hover:text-gray-800"><X size={20}/></button>
+            </div>
+            <p className="text-sm text-gray-500 font-medium mb-6">Enter master password for Zishan GDX administrator access.</p>
+            <form onSubmit={handleAdminAuth}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Master Password</label>
+                  <input 
+                    autoFocus 
+                    type="password" 
+                    value={adminPasswordInput} 
+                    onChange={e => setAdminPasswordInput(e.target.value)} 
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:ring-4 focus:ring-red-100 outline-none font-mono text-center transition-all bg-gray-50" 
+                    placeholder="Enter password" 
+                  />
+                </div>
+                <button 
+                  type="submit"
+                  className="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 transition-all shadow-sm flex items-center justify-center gap-2"
+                >
+                  Verify Identity
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

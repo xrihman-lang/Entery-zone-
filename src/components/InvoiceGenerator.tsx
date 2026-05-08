@@ -6,6 +6,7 @@ import { getFirebase, handleFirestoreError, OperationType } from '../lib/firebas
 import { Logo } from './Logo';
 import { useProductPrices } from '../hooks/useProductPrices';
 import { useLocalDate, getLocalDateString } from '../hooks/useLocalDate';
+import { useSalesmen } from '../context/SalesmanContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -45,6 +46,18 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   const [jobNo, setJobNo] = useState('');
   const [technician, setTechnician] = useState('');
   
+  const { salesmen, activeSalesman, setActiveSalesman } = useSalesmen();
+  // By default use activeSalesman if any 
+  const [selectedSalesmanId, setSelectedSalesmanId] = useState<string>(activeSalesman?.id || '');
+
+  // Keep them synced
+  useEffect(() => {
+    if (selectedSalesmanId) {
+      const s = salesmen.find(x => x.id === selectedSalesmanId);
+      if (s) setActiveSalesman(s);
+    }
+  }, [selectedSalesmanId, salesmen, setActiveSalesman]);
+
   const localDate = useLocalDate();
   const [invoiceDate, setInvoiceDate] = useState(getLocalDateString());
   const prevLocalDate = React.useRef(localDate);
@@ -67,7 +80,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
 
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
-  const [quickAdd, setQuickAdd] = useState({ name: '', quantity: 1 });
+  const [quickAdd, setQuickAdd] = useState<{ name: string; quantity: number | ''; rate: number | '' }>({ name: '', quantity: 1, rate: '' });
   const quickAddRef = React.useRef<HTMLInputElement>(null);
 
   const [saving, setSaving] = useState(false);
@@ -96,17 +109,17 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
     e?.preventDefault();
     if (!quickAdd.name) return;
 
-    const rate = productPrices[quickAdd.name] ? productPrices[quickAdd.name][globalRateType] : 0;
+    const rate = quickAdd.rate !== '' ? Number(quickAdd.rate) : (productPrices[quickAdd.name] ? productPrices[quickAdd.name][globalRateType] : 0);
     const newItem: InvoiceItem = {
       id: crypto.randomUUID(),
       name: quickAdd.name,
-      quantity: quickAdd.quantity || 1,
+      quantity: quickAdd.quantity === '' ? 1 : Number(quickAdd.quantity),
       rate: rate,
       gstPercent: gstEnabled ? 18 : 0
     };
 
     setItems(prev => [...prev, newItem]);
-    setQuickAdd({ name: '', quantity: 1 });
+    setQuickAdd({ name: '', quantity: 1, rate: '' });
     showToast('Item Added!');
     quickAddRef.current?.focus();
   };
@@ -257,6 +270,8 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
 
       const batch = writeBatch(db);
 
+      const s = salesmen.find(x => x.id === selectedSalesmanId);
+
       // Create new invoice document
       const invoiceRef = doc(collection(db, 'invoices'));
       batch.set(invoiceRef, {
@@ -269,6 +284,8 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         waiterName: waiterName || null,
         jobNo: jobNo || null,
         technician: technician || null,
+        salesmanName: s?.name || null,
+        salesmanId: s?.id || null,
         gstin,
         customerName,
         customerPhone,
@@ -330,7 +347,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       setCustomerPhone('');
       setCustomerAddress('');
       setItems([]);
-      setDiscountPercent(0);
+      setManualDiscountAmount(0);
       
       onSaved();
     } catch (e) {
@@ -593,6 +610,21 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                    <label className="block text-sm font-bold text-gray-700 mb-1 uppercase print:mb-0">Date:</label>
                    <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className="px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-900 print:border-none print:p-0" />
                 </div>
+                {salesmen.length > 0 && (
+                  <div className="print:flex print:gap-4 print:items-center">
+                    <label className="block text-sm font-bold text-gray-700 mb-1 uppercase print:mb-0 text-red-600">Order by:</label>
+                    <select 
+                      value={selectedSalesmanId} 
+                      onChange={e => setSelectedSalesmanId(e.target.value)}
+                      className="px-3 py-2 border rounded border-red-200 focus:ring-2 focus:ring-red-500 outline-none font-bold text-red-700 print:border-none print:p-0 bg-red-50"
+                    >
+                      <option value="">-- Select Salesman --</option>
+                      {salesmen.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
              </div>
            </div>
         </div>
@@ -659,7 +691,16 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                     type="text" 
                     list="productNamesListInvoice" 
                     value={quickAdd.name} 
-                    onChange={e => setQuickAdd(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setQuickAdd(prev => {
+                        let newRate = prev.rate;
+                        if (productPrices[val] !== undefined) {
+                          newRate = productPrices[val][globalRateType];
+                        }
+                        return { ...prev, name: val, rate: newRate };
+                      });
+                    }}
                     onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
                     className="w-full outline-none bg-transparent font-bold text-xs py-1.5 px-2" 
                     placeholder="Quick Add Item..." 
@@ -672,11 +713,24 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                   <input 
                     type="number" 
                     value={quickAdd.quantity} 
-                    onChange={e => setQuickAdd(prev => ({ ...prev, quantity: Number(e.target.value) }))}
+                    onChange={e => setQuickAdd(prev => ({ ...prev, quantity: e.target.value === '' ? '' : Number(e.target.value) }))}
                     onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
                     className="w-full outline-none bg-transparent text-center font-bold text-xs py-1.5" 
                   />
                 </td>
+                
+                <td className="p-1 text-right font-mono text-xs">
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={quickAdd.rate} 
+                    onChange={e => setQuickAdd(prev => ({ ...prev, rate: e.target.value === '' ? '' : Number(e.target.value) }))}
+                    onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+                    className="w-full outline-none bg-transparent text-right py-1.5"
+                    placeholder="Price"
+                  />
+                </td>
+
                 <td colSpan={industry === 'Clothing Store' ? 3 : 2} className="p-1 text-right pr-4">
                    <button 
                     onClick={() => handleQuickAdd()}
@@ -834,6 +888,24 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         
         <div className="mt-8 flex justify-end gap-4 print:hidden">
           <button 
+             onClick={() => {
+               setCustomerName('');
+               setCustomerPhone('');
+               setGstin('');
+               setCustomerAddress('');
+               setWaiterName('');
+               setJobNo('');
+               setTechnician('');
+               setItems([]);
+               setManualDiscountAmount(0);
+               showToast('Cleared!', 'success');
+             }}
+             className="flex items-center gap-2 bg-red-50 text-red-600 px-6 py-3 rounded-md font-bold hover:bg-red-100 transition-colors"
+          >
+            Clear
+          </button>
+          
+          <button 
              onClick={() => window.print()}
              className="flex items-center gap-2 bg-blue-100 text-blue-700 px-6 py-3 rounded-md font-bold hover:bg-blue-200 transition-colors"
           >
@@ -845,7 +917,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
              disabled={saving || !user}
              className="flex items-center gap-2 bg-gray-800 text-white px-6 py-3 rounded-md font-bold hover:bg-gray-900 transition-colors disabled:opacity-50"
           >
-            <Save size={18} /> {saving ? 'Saving...' : 'Save Bill'}
+            <Save size={18} /> {saving ? 'Generating...' : 'Generate Bill'}
           </button>
         </div>
       </div>
