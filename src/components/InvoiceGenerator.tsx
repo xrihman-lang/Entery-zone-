@@ -552,7 +552,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
 
           <table className="w-full text-left border-collapse print:border print:border-gray-300">
             <thead>
-              <tr className="bg-gray-800 text-white print:bg-gray-200 print:text-black">
+              <tr className="bg-[#EEEEEE] text-black print:bg-gray-200 print:text-black">
                 <th className="p-2 border print:border-gray-300 text-xs font-bold w-10 text-center uppercase tracking-tight">#</th>
                 <th className="p-2 border print:border-gray-300 text-xs font-bold uppercase tracking-tight">Item</th>
                 <th className="p-2 border print:border-gray-300 text-xs font-bold w-16 text-center uppercase tracking-tight">Qty</th>

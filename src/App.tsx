@@ -658,8 +658,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] p-2 md:p-4 font-sans text-gray-200 print:p-0 print:bg-white print:text-black">
-      <div className="max-w-6xl mx-auto bg-[#111111] border border-[#d4af37]/20 shadow-2xl rounded-lg overflow-hidden print:overflow-visible print:shadow-none print:m-0 print:border-none">
+    <div className="min-h-screen bg-gray-50 p-2 md:p-4 font-sans text-gray-900 print:p-0 print:bg-white print:text-black">
+      <div className="max-w-6xl mx-auto bg-white border border-gray-200 shadow-xl rounded-lg overflow-hidden print:overflow-visible print:shadow-none print:m-0 print:border-none">
         
         {/* Toast Notifications */}
         <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
@@ -682,16 +682,16 @@ export default function App() {
         </div>
 
         {/* Header */}
-        <header className="bg-[#1a1a1a] border-b border-[#d4af37]/30 p-4 flex flex-col items-center md:flex-row justify-between gap-4 print:hidden rounded-t-lg">
+        <header className="bg-white border-b border-gray-200 p-4 flex flex-col items-center md:flex-row justify-between gap-4 print:hidden rounded-t-lg">
           <div className="flex items-center gap-4">
-            <Logo iconClassName="w-12 h-12 text-[#d4af37]" textClassName="text-2xl text-[#d4af37]" />
-            <div className="border-l-2 border-[#d4af37]/30 pl-4">
-              <h1 className="text-xl font-bold tracking-tight text-[#d4af37]">Zishan GDX</h1>
-              <p className="text-gray-400 print:hidden text-sm mt-0.5 font-medium">
+            <Logo iconClassName="w-12 h-12 text-blue-600" textClassName="text-2xl text-gray-900" />
+            <div className="border-l-2 border-gray-200 pl-4">
+              <h1 className="text-xl font-bold tracking-tight text-gray-900">Zishan GDX</h1>
+              <p className="text-gray-500 print:hidden text-sm mt-0.5 font-medium">
                 {user ? `Welcome, ${user.displayName || user.email}` : 'Guest Mode (Local Only)'}
               </p>
               {!user && (
-                <div className="mt-1 inline-flex items-center gap-1 bg-[#d4af37]/10 text-[#d4af37] text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border border-[#d4af37]/30 print:hidden">
+                <div className="mt-1 inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border border-amber-200 print:hidden">
                   <X size={10} /> Not Syncing
                 </div>
               )}
@@ -700,21 +700,21 @@ export default function App() {
           <div className="flex gap-2 print:hidden">
             <button 
               onClick={handlePrint}
-              className="flex items-center gap-2 bg-[#222] text-[#d4af37] border border-[#d4af37]/30 px-3 py-2 rounded-lg font-bold hover:bg-[#333] transition-colors shadow-sm text-sm"
+              className="flex items-center gap-2 bg-gray-50 text-gray-700 border border-gray-200 px-3 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors shadow-sm text-sm"
             >
               <Printer size={16} />
               Print
             </button>
             <button 
               onClick={generatePDF}
-              className="flex items-center gap-2 bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/30 px-3 py-2 rounded-lg font-bold hover:bg-[#d4af37]/20 transition-colors shadow-sm text-sm"
+              className="flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 px-3 py-2 rounded-lg font-bold hover:bg-green-100 transition-colors shadow-sm text-sm"
             >
               <FileDown size={16} />
               Report
             </button>
             <button 
               onClick={() => setIsSubscriptionModalOpen(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-[#d4af37] to-[#f1c40f] text-black border border-yellow-600 px-3 py-2 rounded-lg font-bold hover:from-yellow-400 hover:to-yellow-500 transition-colors shadow-sm text-sm"
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border border-blue-700 px-3 py-2 rounded-lg font-bold hover:from-blue-500 hover:to-indigo-500 transition-colors shadow-sm text-sm"
             >
               <Crown size={16} />
               Premium
@@ -722,7 +722,7 @@ export default function App() {
             {user ? (
               <button 
                 onClick={handleSignOut}
-                className="flex items-center gap-2 bg-[#222] text-[#d4af37] border border-[#d4af37]/30 px-3 py-2 rounded-lg font-bold hover:bg-[#333] transition-colors shadow-sm text-sm"
+                className="flex items-center gap-2 bg-gray-50 text-gray-700 border border-gray-200 px-3 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors shadow-sm text-sm"
               >
                 <LogOut size={16} />
                 Sign Out
@@ -730,7 +730,7 @@ export default function App() {
             ) : (
               <button 
                 onClick={() => setLocalMode(false)}
-                className="flex items-center gap-2 bg-[#d4af37] text-black border border-[#d4af37] px-3 py-2 rounded-lg font-bold hover:bg-[#f1c40f] transition-colors shadow-sm text-sm"
+                className="flex items-center gap-2 bg-blue-600 text-white border border-blue-600 px-3 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-sm"
               >
                 <User size={16} />
                 Login
@@ -1014,17 +1014,17 @@ export default function App() {
 
         {/* Dashboard / Summary Cards */}
         <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3 bg-white print:hidden">
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded shadow-sm">
-            <h3 className="text-blue-600 text-[10px] font-black uppercase tracking-widest">Total Sales</h3>
-            <p className="text-lg font-black text-gray-800 mt-1">₹{totals.total.toLocaleString('en-IN')}</p>
+          <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm border-l-4 border-l-blue-600">
+            <h3 className="text-gray-500 text-[10px] font-black uppercase tracking-widest">Total Sales</h3>
+            <p className="text-2xl font-black text-gray-900 mt-1">₹{totals.total.toLocaleString('en-IN')}</p>
           </div>
-          <div className="bg-green-50 border-l-4 border-green-500 p-3 rounded shadow-sm">
-            <h3 className="text-green-600 text-[10px] font-black uppercase tracking-widest">Total Jama</h3>
-            <p className="text-lg font-black text-gray-800 mt-1">₹{totals.received.toLocaleString('en-IN')}</p>
+          <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm border-l-4 border-l-green-600">
+            <h3 className="text-gray-500 text-[10px] font-black uppercase tracking-widest">Total Jama</h3>
+            <p className="text-2xl font-black text-gray-900 mt-1">₹{totals.received.toLocaleString('en-IN')}</p>
           </div>
-          <div className="bg-yellow-50 border-l-4 border-yellow-500 p-3 rounded shadow-sm">
-            <h3 className="text-yellow-700 text-[10px] font-black uppercase tracking-widest">Total Udhaari</h3>
-            <p className="text-lg font-black text-gray-800 mt-1 text-red-600">₹{totals.pending.toLocaleString('en-IN')}</p>
+          <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm border-l-4 border-l-red-600">
+            <h3 className="text-gray-500 text-[10px] font-black uppercase tracking-widest">Total Udhaari</h3>
+            <p className="text-2xl font-black text-red-600 mt-1">₹{totals.pending.toLocaleString('en-IN')}</p>
           </div>
         </div>
 
@@ -1110,19 +1110,19 @@ export default function App() {
         </div>
 
         {/* Table Container */}
-        <div className="overflow-x-auto min-h-[300px]">
+        <div className="overflow-x-auto min-h-[300px] border-t border-gray-200">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className={`${activeTab === 'vrs' ? 'bg-purple-600' : 'bg-[#FFC107]'} text-black print:bg-gray-100`}>
-                <th className="p-3 border border-gray-200 first:border-l-0 text-sm font-bold uppercase whitespace-nowrap print:hidden">Sr. No</th>
-                <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap">Date</th>
-                <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap hidden print:table-cell">Time</th>
-                <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap">Name</th>
-                <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap text-center print:hidden">Type</th>
-                <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap text-right text-blue-800">Total</th>
-                <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap text-right text-green-800">Jama</th>
-                <th className="p-3 border border-gray-200 text-sm font-bold uppercase whitespace-nowrap text-right text-red-800">Udhari</th>
-                <th className="p-3 border border-gray-200 last:border-r-0 text-sm font-bold uppercase whitespace-nowrap text-center print:hidden">Action</th>
+              <tr className="bg-[#EEEEEE] text-black print:bg-gray-100">
+                <th className="p-3 border border-gray-200 first:border-l-0 text-xs font-bold uppercase whitespace-nowrap print:hidden">Sr. No</th>
+                <th className="p-3 border border-gray-200 text-xs font-bold uppercase whitespace-nowrap">Date</th>
+                <th className="p-3 border border-gray-200 text-xs font-bold uppercase whitespace-nowrap hidden print:table-cell">Time</th>
+                <th className="p-3 border border-gray-200 text-xs font-bold uppercase whitespace-nowrap">Name</th>
+                <th className="p-3 border border-gray-200 text-xs font-bold uppercase whitespace-nowrap text-center print:hidden">Type</th>
+                <th className="p-3 border border-gray-200 text-xs font-bold uppercase whitespace-nowrap text-right text-black">Total</th>
+                <th className="p-3 border border-gray-200 text-xs font-bold uppercase whitespace-nowrap text-right text-black">Jama</th>
+                <th className="p-3 border border-gray-200 text-xs font-bold uppercase whitespace-nowrap text-right text-black">Udhari</th>
+                <th className="p-3 border border-gray-200 last:border-r-0 text-xs font-bold uppercase whitespace-nowrap text-center print:hidden">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1211,11 +1211,11 @@ export default function App() {
             </tbody>
             {filteredEntries.length > 0 && (
               <tfoot>
-                <tr className="bg-gray-800 text-white font-bold text-lg print:text-black print:bg-gray-100">
+                <tr className="bg-gray-100 text-black border-t-2 border-gray-300 font-bold text-lg print:bg-gray-100">
                   <td colSpan={4} className="p-4 text-right pr-6 uppercase tracking-wider text-[10px] print:hidden">Summary</td>
                   <td className="p-4 text-right font-mono text-sm">₹{totals.total.toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td>
-                  <td className="p-4 text-right font-mono text-green-400 print:text-gray-800 text-sm">₹{totals.received.toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td>
-                  <td className="p-4 text-right font-mono text-yellow-400 print:text-gray-800 text-sm">₹{totals.pending.toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td>
+                  <td className="p-4 text-right font-mono text-green-700 print:text-gray-800 text-sm">₹{totals.received.toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td>
+                  <td className="p-4 text-right font-mono text-red-600 print:text-gray-800 text-sm">₹{totals.pending.toLocaleString('en-IN', { minimumFractionDigits: 1 })}</td>
                   <td className="print:hidden"></td>
                 </tr>
               </tfoot>

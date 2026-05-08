@@ -230,13 +230,13 @@ export default function InvoiceHistory({ user }: { user: any }) {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-500">Date</th>
-                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-500">Bill No</th>
-                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-500">Customer Name</th>
-                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-500 text-right">Tax (GST)</th>
-                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-500 text-right">Grand Total</th>
-                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-500 text-center">Actions</th>
+              <tr className="bg-[#EEEEEE] border-b border-gray-200">
+                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-700">Date</th>
+                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-700">Bill No</th>
+                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-700">Customer Name</th>
+                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-700 text-right">Tax (GST)</th>
+                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-700 text-right">Grand Total</th>
+                <th className="py-4 px-6 font-bold text-xs uppercase tracking-wider text-gray-700 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>

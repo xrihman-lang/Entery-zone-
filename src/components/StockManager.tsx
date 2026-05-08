@@ -138,12 +138,12 @@ export function StockManager({ user }: { user: any }) {
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-sm print:hidden min-h-screen">
-      <div className="flex justify-between items-center mb-6">
+      <div className="bg-[#EEEEEE] px-4 py-3 rounded-lg flex justify-between items-center mb-6">
         <div>
           <h2 className="text-xl font-black text-gray-800 flex items-center gap-2 uppercase tracking-tight">
             <Package className="text-blue-600" /> Live Stock Inventory
           </h2>
-          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Manage items, crates, and pieces</p>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Manage items, crates, and pieces</p>
         </div>
         <button 
           onClick={() => setShowAdd(!showAdd)}
