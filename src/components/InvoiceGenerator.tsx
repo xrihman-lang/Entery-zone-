@@ -354,7 +354,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       {`
         @media print {
           @page { size: auto; margin: 5mm 10mm; }
-          html, body { height: auto !important; overflow: visible !important; min-height: 100% !important; margin: 0 !important; padding: 0 !important; }
+          html, body { height: auto !important; overflow: visible !important; min-height: 100% !important; margin: 0 !important; padding: 0 !important; color: black !important; background: white !important; }
           .print\\:flex { display: flex !important; }
           .print-fixed-header { position: fixed; top: 0; left: 0; right: 0; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 8px; }
           .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 25px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; font-size: 8px; padding: 0 10mm; }
@@ -363,8 +363,11 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
           tr { page-break-inside: avoid; page-break-after: auto; }
           thead { display: table-header-group; }
           tfoot { display: table-footer-group; }
+          .print-avoid-break { page-break-inside: avoid !important; }
           .watermark-text { position: fixed; pointer-events: none; }
-          input, select, textarea { border: none !important; padding: 0 !important; background: transparent !important; appearance: none !important; -webkit-appearance: none; }
+          input, select, textarea { border: none !important; padding: 0 !important; background: transparent !important; appearance: none !important; -webkit-appearance: none; color: black !important; }
+          .print-summary-label { font-weight: 800 !important; color: black !important; text-transform: uppercase; }
+          .print-grand-total { font-size: 1.25rem !important; font-weight: 900 !important; color: black !important; border-top: 2px solid black !important; margin-top: 4px; padding-top: 4px; }
           .print\\:hidden { display: none !important; }
         }
       `}
@@ -646,26 +649,26 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between gap-8 py-4 border-t-2 border-gray-800 dark:border-gray-200 print:border-none print:py-0 print:items-end print:text-right">
+        <div className="flex flex-col md:flex-row justify-between gap-8 py-4 border-t-2 border-gray-800 dark:border-gray-200 print:border-none print:py-0 print:items-end print:text-right print-avoid-break">
            
            <div className="w-full md:w-1/2 ml-auto print:w-1/2 print:ml-auto">
               <div className="bg-gray-50 p-6 rounded border border-gray-200 print:bg-transparent print:border-none print:p-0">
                  <div className="flex justify-between mb-2 print:text-black">
-                    <span className="font-bold text-gray-600 print:text-black">Total Qty (Dabba):</span>
+                    <span className="font-bold text-gray-600 print:text-black print-summary-label">Total Qty (Dabba):</span>
                     <span className="font-black text-gray-900 border-b-2 border-blue-200 print:text-black print:border-gray-800">{totalQty}</span>
                  </div>
                 <div className="flex justify-between mb-2 print:text-black">
-                    <span className="font-bold text-gray-600 print:text-black text-sm">Taxable Subtotal:</span>
+                    <span className="font-bold text-gray-600 print:text-black text-sm print-summary-label">Taxable Subtotal:</span>
                     <span className="font-mono text-gray-800 print:text-black text-sm">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                  </div>
                  {gstEnabled && totalTax > 0 && (
                     <>
                       <div className="flex justify-between mb-2 text-xs print:text-black">
-                         <span className="font-medium text-gray-600 print:text-black">Total CGST:</span>
+                         <span className="font-medium text-gray-600 print:text-black print-summary-label">Total CGST:</span>
                          <span className="font-mono text-gray-800 print:text-black">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
                       <div className="flex justify-between mb-4 border-b border-gray-300 pb-2 text-xs print:text-black print:border-gray-800">
-                         <span className="font-medium text-gray-600 print:text-black">Total SGST:</span>
+                         <span className="font-medium text-gray-600 print:text-black print-summary-label">Total SGST:</span>
                          <span className="font-mono text-gray-800 print:text-black">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
                     </>
@@ -685,12 +688,12 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                  </div>
                  {discountPercent > 0 && (
                     <div className="flex justify-between mb-2 text-sm text-green-700 print:text-black border-b border-gray-200 pb-2 print:border-gray-800">
-                       <span className="font-bold">Discount ({discountPercent}%):</span>
+                       <span className="font-bold print-summary-label">DISCOUNT ({discountPercent}%):</span>
                        <span className="font-mono font-bold">-₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                  )}
-                 <div className="flex justify-between items-center mt-2">
-                    <span className="text-xl font-bold text-gray-900">Grand Total:</span>
+                 <div className="flex justify-between items-center mt-2 print-grand-total">
+                    <span className="text-xl font-bold text-gray-900 print:text-black print-summary-label">GRAND TOTAL:</span>
                     <span className="text-2xl font-black font-mono text-blue-600 print:text-black">₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                  </div>
               </div>
