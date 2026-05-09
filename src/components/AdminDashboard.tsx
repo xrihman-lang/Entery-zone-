@@ -8,7 +8,7 @@ export function AdminDashboard() {
   const { products, updateProduct } = useProducts();
   const { customers, updateCreditLimit } = useCustomers();
   const { salesmen, addSalesman, removeSalesman } = useSalesmen();
-  const [activeTab, setActiveTab] = useState<'prices' | 'orders' | 'credit' | 'salesmen'>('prices');
+  const [activeTab, setActiveTab] = useState<'prices' | 'credit' | 'salesmen'>('prices');
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState<number>(0);
@@ -121,12 +121,6 @@ export function AdminDashboard() {
           <Users size={16} /> Salesmen
         </button>
         <button 
-          onClick={() => setActiveTab('orders')} 
-          className={`flex-1 py-3 px-4 font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 ${activeTab === 'orders' ? 'bg-gray-50 border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}
-        >
-          <Package size={16} /> All Orders
-        </button>
-        <button 
           onClick={() => setActiveTab('credit')} 
           className={`flex-1 py-3 px-4 font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 ${activeTab === 'credit' ? 'bg-gray-50 border-b-2 border-red-600 text-red-600' : 'text-gray-500 hover:bg-gray-50'}`}
         >
@@ -234,14 +228,6 @@ export function AdminDashboard() {
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
-
-        {activeTab === 'orders' && (
-          <div className="text-center py-12">
-            <Package size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-xl font-black text-gray-800">All Received Orders</h3>
-            <p className="text-gray-500 mt-2 max-w-md mx-auto">This list will populate when B2B customers place orders from the portal. Currently showing a centralized view design.</p>
           </div>
         )}
 

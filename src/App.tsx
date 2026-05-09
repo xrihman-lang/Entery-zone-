@@ -36,8 +36,6 @@ import InvoiceHistory from './components/InvoiceHistory';
 import { StockManager } from './components/StockManager';
 import SubscriptionModal from './components/SubscriptionModal';
 import { usePremiumStatus } from './hooks/usePremiumStatus';
-import { B2BOrderPage } from './components/B2BOrderPage';
-import { CustomerLedger } from './components/CustomerLedger';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Logo } from './components/Logo';
 import { useProductPrices } from './hooks/useProductPrices';
@@ -96,7 +94,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [localMode, setLocalMode] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice' | 'history' | 'stock' | 'b2b' | 'khata' | 'admin'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice' | 'history' | 'stock' | 'admin'>('standard');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -849,46 +847,10 @@ export default function App() {
           >
             Stock
           </button>
-          <button
-            onClick={() => setActiveTab('b2b')}
-            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-              activeTab === 'b2b' 
-              ? 'bg-white border-blue-600 text-blue-600' 
-              : 'text-gray-500 hover:text-gray-700 border-transparent'
-            }`}
-          >
-            B2B Order
-          </button>
-          <button
-            onClick={() => {
-              if (!isAdminEmail && !isAdminAuthenticated) {
-                showToast('Access Denied. Only Admin can manage Khata.', 'error');
-                return;
-              }
-              setActiveTab('khata');
-            }}
-            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-              activeTab === 'khata' 
-              ? 'bg-white border-red-600 text-red-600' 
-              : 'text-red-500 hover:text-red-700 border-transparent'
-            }`}
-          >
-            Digital Khata {(!isAdminEmail && !isAdminAuthenticated) && '(Locked)'}
-          </button>
         </div>
 
         {activeTab === 'admin' ? (
           <AdminDashboard />
-        ) : activeTab === 'khata' ? (
-          <CustomerLedger />
-        ) : activeTab === 'b2b' ? (
-          <B2BOrderPage 
-            onCheckout={(items) => {
-              // Add simple functionality to route to generate bill
-              setActiveTab('invoice');
-              // To properly pass items we'd need more state, but for now we just change tab
-            }} 
-          />
         ) : activeTab === 'invoice' ? (
           <InvoiceGenerator user={user} onSaved={() => setActiveTab('standard')} />
         ) : activeTab === 'history' ? (

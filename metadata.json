@@ -1,6 +1,6 @@
 {
   "name": "Daily Daybook",
   "description": "A professional digital ledger for tracking daily customer transactions, payments, and pending balances with auto-calculations and PDF export.",
-  "requestFramePermissions": ["geolocation"],
+  "requestFramePermissions": [],
   "majorCapabilities": []
 }
