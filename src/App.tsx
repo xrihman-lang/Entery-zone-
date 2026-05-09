@@ -163,6 +163,21 @@ export default function App() {
       clearInterval(popupInterval);
     };
   }, [isPremium, premiumLoading, user, expiryDate]);
+
+  // --- Exit Intent Guidance ---
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const message = "Are you sure you want to close GDX Website? Please confirm your action.";
+      speak(message, 'professional');
+      e.preventDefault();
+      e.returnValue = message;
+      return message;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+  // -----------------------------
   // ------------------------------------
   const isNearExpiry = useMemo(() => {
     if (!isPremium || !expiryDate) return false;
@@ -183,10 +198,8 @@ export default function App() {
     const id = crypto.randomUUID();
     setToasts(prev => [...prev, { id, message, type }]);
     
-    // Voice Feedback for Success
-    if (type === 'success' && (message.toLowerCase().includes('saved') || message.toLowerCase().includes('successful') || message.toLowerCase().includes('updated'))) {
-      speak('Entry Successful', 'professional');
-    }
+    // We now use more specific speech triggers in the handler functions
+    // so we can remove the generic toast speech here.
 
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
@@ -371,6 +384,12 @@ export default function App() {
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.customerName || !formData.totalAmount) return;
+
+    if (!editingId) {
+      speak('New row added', 'professional');
+    } else {
+      speak('Entry saved successfully', 'professional');
+    }
 
     const total = parseFloat(formData.totalAmount || '0');
     const received = parseFloat(formData.receivedAmount || '0');
@@ -618,6 +637,7 @@ export default function App() {
       });
 
       await Promise.all(promises);
+      speak('Data imported successfully', 'professional');
       showToast(`${bulkPreview.length} entries saved to Cloud!`);
       setBulkPreview([]);
       setBulkInput('');
@@ -716,9 +736,11 @@ export default function App() {
 
     const safeMonthName = monthName.replace(/\s+/g, '_');
     doc.save(`Daybook_Report_${safeMonthName}_${filterYear}.pdf`);
+    speak('Bill generated. Ready to print', 'professional');
   };
 
   const handlePrint = () => {
+    speak('Bill generated. Ready to print', 'professional');
     window.print();
   };
 
@@ -787,7 +809,7 @@ export default function App() {
             </div>
             <div className="border-l-2 border-gray-200 pl-4">
               <h1 onClick={handleAdminTitleClick} className="text-xl font-bold tracking-tight text-gray-900 cursor-pointer hover:text-blue-600 transition-colors">
-                Zishan GDX
+                GDX
               </h1>
               <p className="text-gray-500 print:hidden text-sm mt-0.5 font-medium">
                 {user ? `Welcome, ${user.displayName || user.email}` : 'Guest Mode (Local Only)'}
@@ -864,9 +886,9 @@ export default function App() {
 
         {/* Print-only Header */}
         <div className="hidden print:flex flex-col items-center justify-center p-8 mb-4 border-b border-gray-400">
-          <p className="text-xs text-gray-400 mb-2 uppercase tracking-widest">Official Report by Zishan GDX</p>
-          <h1 className="text-4xl font-bold uppercase tracking-widest text-black">Zishan GDX Report</h1>
-          <p className="text-gray-500 mt-2 text-lg font-medium tracking-widest uppercase">Powered by Zishan GDX</p>
+          <p className="text-xs text-gray-400 mb-2 uppercase tracking-widest">Official Report by GDX</p>
+          <h1 className="text-4xl font-bold uppercase tracking-widest text-black">GDX Report</h1>
+          <p className="text-gray-500 mt-2 text-lg font-medium tracking-widest uppercase">Powered by GDX</p>
           <div className="mt-4 text-sm text-gray-500 font-medium font-mono">
             PERIOD: {filterMonth === 0 ? 'ALL MONTHS' : new Date(filterYear, filterMonth - 1).toLocaleString('default', { month: 'long' }).toUpperCase()} {filterYear}
           </div>
@@ -1369,7 +1391,7 @@ export default function App() {
       </div>
 
       <footer className="max-w-6xl mx-auto mt-8 mb-12 text-center text-gray-500 text-sm print:hidden">
-        <p className="mb-2">&copy; {new Date().getFullYear()} Zishan GDX. Your data is securely stored in the cloud.</p>
+        <p className="mb-2">&copy; {new Date().getFullYear()} GDX. Your data is securely stored in the cloud.</p>
         <div className="flex justify-center items-center gap-2 md:gap-4 text-xs font-semibold flex-wrap px-4">
           <button onClick={() => setIsAboutOpen(true)} className="hover:text-gray-800 hover:underline transition-colors focus:outline-none">About Us</button>
           <span>&middot;</span>
@@ -1393,7 +1415,7 @@ export default function App() {
             <h2 className="text-2xl font-black text-gray-900 mb-4 tracking-tight">About Us</h2>
             <div className="space-y-4 text-gray-600 leading-relaxed text-sm">
               <p>
-                <strong className="text-gray-900">zishan gdx</strong> ek professional digital ledger aur billing solution hai jo chhote aur bade businesses ko unka hisaab-kitaab digital karne mein madad karta hai.
+                <strong className="text-gray-900">GDX</strong> ek professional digital ledger aur billing solution hai jo chhote aur bade businesses ko unka hisaab-kitaab digital karne mein madad karta hai.
               </p>
               <p>
                 Hamara maksad billing ko aasan, fast, aur error-free banana hai taaki aap sirf apne business ki growth par focus kar saken. Paper registers aur manual hisaab ko bhool jaiye aur ek modern digital daybook ka anubhav lijiye.
@@ -1401,7 +1423,7 @@ export default function App() {
             </div>
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
               <button 
-                onMouseEnter={() => isPremium && speak('Thank you for using GDX Zishan Website', 'sweet')}
+                onMouseEnter={() => isPremium && speak('Thank you for using GDX Website', 'sweet')}
                 onClick={() => setIsAboutOpen(false)} 
                 className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
               >
@@ -1459,7 +1481,7 @@ export default function App() {
             
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
               <button 
-                onMouseEnter={() => isPremium && speak('Thank you for using GDX Zishan Website', 'sweet')}
+                onMouseEnter={() => isPremium && speak('Thank you for using GDX Website', 'sweet')}
                 onClick={() => setIsPrivacyOpen(false)} 
                 className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
               >
@@ -1482,13 +1504,13 @@ export default function App() {
             </button>
             <h2 className="text-2xl font-black text-gray-900 mb-6 tracking-tight">Terms & Conditions</h2>
             <div className="space-y-6 text-gray-600 text-sm">
-              <p>Welcome to Zishan GDX. By accessing and using our application, you accept and agree to be bound by the terms and provision of this agreement.</p>
+              <p>Welcome to GDX. By accessing and using our application, you accept and agree to be bound by the terms and provision of this agreement.</p>
               
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-start gap-4">
                 <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0"></div>
                 <div>
                   <h3 className="font-bold text-gray-900 mb-1">Service Usage</h3>
-                  <p>You agree to use this service only for lawful purposes, and in a way that does not infringe the rights of, restrict or inhibit anyone else's use and enjoyment of Zishan GDX.</p>
+                  <p>You agree to use this service only for lawful purposes, and in a way that does not infringe the rights of, restrict or inhibit anyone else's use and enjoyment of GDX.</p>
                 </div>
               </div>
 
@@ -1503,7 +1525,7 @@ export default function App() {
             
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
               <button 
-                onMouseEnter={() => isPremium && speak('Thank you for using GDX Zishan Website', 'sweet')}
+                onMouseEnter={() => isPremium && speak('Thank you for using GDX Website', 'sweet')}
                 onClick={() => setIsTermsOpen(false)} 
                 className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
               >
@@ -1545,7 +1567,7 @@ export default function App() {
             
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
               <button 
-                onMouseEnter={() => isPremium && speak('Thank you for using GDX Zishan Website', 'sweet')}
+                onMouseEnter={() => isPremium && speak('Thank you for using GDX Website', 'sweet')}
                 onClick={() => setIsRefundOpen(false)} 
                 className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
               >
@@ -1564,7 +1586,7 @@ export default function App() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:hidden overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 relative my-8 animate-in fade-in zoom-in duration-200">
             <button 
-              onMouseEnter={() => isPremium && speak('Thank you for using GDX Zishan Website', 'sweet')}
+              onMouseEnter={() => isPremium && speak('Thank you for using GDX Website', 'sweet')}
               onClick={() => setIsSupportOpen(false)} 
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none group"
             >
@@ -1587,12 +1609,12 @@ export default function App() {
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase">Business</h3>
-                <p className="text-gray-900 font-medium">Zishan GDX</p>
+                <p className="text-gray-900 font-medium">GDX</p>
               </div>
             </div>
 
             <a 
-              href="https://wa.me/917075162279?text=Hello%20Zishan%20GDX%2C%20mujhe%20app%20mein%20kuch%20help%20chahiye." 
+              href="https://wa.me/917075162279?text=Hello%20GDX%2C%20mujhe%20app%20mein%20kuch%20help%20chahiye." 
               target="_blank" 
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full bg-[#25D366] text-white py-3 px-4 rounded-xl font-bold hover:bg-[#128C7E] transition-colors mb-6 shadow-sm"
@@ -1639,7 +1661,7 @@ export default function App() {
             </form>
 
             <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-              <p className="text-xs text-gray-400 font-medium tracking-wide">Supported by Zishan GDX Team.</p>
+              <p className="text-xs text-gray-400 font-medium tracking-wide">Supported by GDX Team.</p>
               <p className="text-xs text-gray-400 mt-0.5">We usually reply within 24 hours.</p>
             </div>
           </div>
@@ -1656,7 +1678,7 @@ export default function App() {
               </h3>
               <button onClick={() => setIsAdminModalOpen(false)} className="text-gray-400 hover:text-gray-800"><X size={20}/></button>
             </div>
-            <p className="text-sm text-gray-500 font-medium mb-6">Enter master password for Zishan GDX administrator access.</p>
+            <p className="text-sm text-gray-500 font-medium mb-6">Enter master password for GDX administrator access.</p>
             <form onSubmit={handleAdminAuth}>
               <div className="space-y-4">
                 <div>

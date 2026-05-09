@@ -88,10 +88,8 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
     const id = crypto.randomUUID();
     setToasts(prev => [...prev, { id, message, type }]);
 
-    // Voice Feedback for Success
-    if (type === 'success' && (message.toLowerCase().includes('saved') || message.toLowerCase().includes('added') || message.toLowerCase().includes('successful'))) {
-      speak('Entry Successful', 'professional');
-    }
+    // We now use more specific speech triggers in the handler functions
+    // so we can remove the generic toast speech here.
 
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
@@ -99,6 +97,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   };
 
   const handleAddItem = () => {
+    speak('New row added', 'professional');
     const newItem = { id: Date.now().toString(), name: '', quantity: 1, rate: 0, gstPercent: gstEnabled ? 18 : 0 };
     setItems([...items, newItem]);
   };
@@ -107,6 +106,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
     e?.preventDefault();
     if (!quickAdd.name) return;
 
+    speak('New row added', 'professional');
     const rate = quickAdd.rate !== '' ? Number(quickAdd.rate) : (productPrices[quickAdd.name] ? productPrices[quickAdd.name][globalRateType] : 0);
     const newItem: InvoiceItem = {
       id: crypto.randomUUID(),
@@ -217,6 +217,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       setItems((prevItems) => {
         return [...prevItems, ...importedItems];
       });
+      speak('Data imported successfully', 'professional');
       showToast(`${importedItems.length} items imported!`);
       setIsBulkImportOpen(false);
       setBulkImportText('');
@@ -337,6 +338,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
 
       await batch.commit();
 
+      speak('Data synced to GDX Cloud', 'professional');
       showToast('Bill Saved Successfully! Stock deducted.');
       // Auto refresh form
       setCustomerName('');
@@ -410,17 +412,23 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       </style>
 
       {/* Brand Header for Print */}
-      <div className="hidden print:flex print-fixed-header justify-between items-start" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-         <div className="flex-1 text-center">
+      <div className="hidden print:flex print-fixed-header flex-col items-center" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+         <div className="w-full relative flex flex-col items-center">
+            <div className="absolute top-0 left-0 bg-gray-900 text-white px-2 py-0.5 text-[8px] font-black uppercase tracking-widest leading-none">
+              Standard Wide Invoice
+            </div>
             <h1 className="text-5xl font-black text-gray-900 tracking-tighter uppercase leading-none">{brandName}</h1>
-            <p className="text-xs text-gray-600 font-bold mt-1 uppercase mx-auto">{brandAddress}</p>
+            <p className="text-xs text-gray-600 font-bold mt-1 uppercase text-center">{brandAddress}</p>
             {gstin && <p className="text-xs text-gray-500 font-bold mt-0.5">GSTIN: {gstin}</p>}
          </div>
-         <div className="text-right absolute top-4 right-4">
+         <div className="w-full flex justify-end mt-2">
             <div className="bg-gray-900 text-white px-3 py-1 inline-block mb-1">
               <p className="text-sm font-black tracking-widest uppercase">Tax Invoice</p>
             </div>
+         </div>
+         <div className="w-full flex justify-between border-t border-b border-gray-200 py-1 mt-1 mb-2">
             <p className="text-xs font-mono text-gray-800">Bill No: <span className="font-bold">{billNo}</span></p>
+            <p className="text-xs font-mono text-gray-800">Date: <span className="font-bold">{invoiceDate}</span></p>
          </div>
       </div>
       
@@ -435,6 +443,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
           <div>
             <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
               <FileDown className="text-blue-500" /> Multi-Industry Billing
+              <span className="bg-gray-900 text-white text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter leading-none ml-2">Standard Wide Invoice Active</span>
             </h2>
             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Select your business type for custom layouts</p>
           </div>
@@ -501,7 +510,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                       setBulkImportText('');
                       setIsBulkImportOpen(false);
                     }}
-                    onMouseEnter={() => speak('Thank you for using GDX Zishan Website', 'sweet')}
+                    onMouseEnter={() => speak('Thank you for using GDX Website', 'sweet')}
                     className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors"
                  >
                     Discard
@@ -807,7 +816,10 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         
         <div className="mt-8 flex flex-wrap justify-end gap-4 print:hidden">
           <button 
-             onClick={() => window.print()}
+             onClick={() => {
+                speak('Bill generated. Ready to print', 'professional');
+                window.print();
+             }}
              className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-md font-bold hover:bg-green-700 transition-colors shadow-sm"
           >
             <Printer size={18} /> PRINT INVOICE

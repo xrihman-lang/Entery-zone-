@@ -36,7 +36,7 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
           key: "rzp_live_SmYl9h1s1WboEw", // Provided as generic, no real secret used. It's a standard mock for dev.
           amount: amount * 100,
           currency: "INR",
-          name: "Zishan GDX",
+          name: "GDX",
           description: `${planName} Subscription`,
           image: "https://your-logo-url.com/logo.png",
           handler: async function (response: any) {
@@ -110,7 +110,7 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
 
         {/* Close Button */}
         <button 
-          onMouseEnter={() => speak('Thank you for using GDX Zishan Website', 'sweet')}
+          onMouseEnter={() => speak('Thank you for using GDX Website', 'sweet')}
           onClick={onClose}
           className="fixed top-6 right-6 text-gray-400 hover:text-white transition-colors z-[99999] p-2 bg-black/50 rounded-full"
         >

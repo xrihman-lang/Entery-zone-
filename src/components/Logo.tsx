@@ -23,8 +23,7 @@ export const Logo = ({
     <div className={`flex ${layout === 'vertical' ? 'flex-col justify-center items-center gap-1' : 'items-center gap-2'}`}>
       <LogoIcon className={iconClassName} />
       <div className={`font-black tracking-tighter ${textClassName}`}>
-        <span className="text-blue-700" style={{ color: '#1D4ED8', forcedColorAdjust: 'preserve' }}>ZISHAN</span>
-        <span className="text-green-500 ml-1.5" style={{ color: '#10B981', forcedColorAdjust: 'preserve' }}>GDX</span>
+        <span className="text-blue-700" style={{ color: '#1D4ED8', forcedColorAdjust: 'preserve' }}>GDX</span>
       </div>
     </div>
   );
