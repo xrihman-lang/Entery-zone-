@@ -14,17 +14,12 @@ const loadRazorpay = () => new Promise((resolve) => {
 });
 
 export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry }: { isOpen: boolean, onClose: () => void, user: any, isNearExpiry?: boolean }) {
-  const launchDate = new Date("2026-05-10T00:00:00Z");
-  const [isLaunched, setIsLaunched] = useState(false);
-  const [showOverlay, setShowOverlay] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    const launched = new Date() >= launchDate;
-    setIsLaunched(launched);
-    // Reset overlay state when modal opens/closes
     if (isOpen) {
-      setShowOverlay(!launched);
+      // Voice greeting when entering premium page
+      speak('Welcome to GDX Premium', 'professional');
     }
   }, [isOpen]);
 
@@ -226,28 +221,9 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
           }
         `}</style>
         
-        {showOverlay && (
-            <div className="launch-overlay">
-                <div className="card-3d" style={{ width: '500px', maxWidth: '90%' }}>
-                    <h1 className="gold-glow text-3xl md:text-4xl font-bold text-wrap px-4">🚀 Something Big is Coming!</h1>
-                    <p style={{ fontSize: '1.2rem', color: '#ccc', marginTop: '10px' }}>GDX Premium Dashboard is evolving.</p>
-                    <hr style={{ border: '0.5px solid rgba(212,175,55,0.3)', margin: '20px 0', width: '100%' }} />
-                    <h2 style={{ color: '#fff', fontSize: '1.5rem', marginBottom: '10px' }}>Launching: 10 / 05 / 2026</h2>
-                    <p style={{ color: '#d4af37' }}>Ab har entry hogi Smart aur Fast.</p>
-                    <button 
-                        onClick={() => setShowOverlay(false)}
-                        className="btn-active"
-                        style={{ marginTop: '30px', width: 'auto' }}
-                    >
-                        Get a Sneak Peek
-                    </button>
-                </div>
-            </div>
-        )}
-
         <div className="pricing-wrap">
             {/* Why Premium Section */}
-            <div className="w-full text-center mb-12 cursor-pointer group" onClick={() => isLaunched && handlePayment('Business', 9999, 12)}>
+            <div className="w-full text-center mb-12 cursor-pointer group" onClick={() => handlePayment('Business', 9999, 12)}>
               <motion.h2 
                 initial={{ y: 20, opacity: 0 }}
                 whileInView={{ y: 0, opacity: 1 }}
@@ -280,11 +256,11 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
                   <h1 className="gold-glow text-5xl">₹1,500<span className="text-xl text-gray-400 font-normal">/mo</span></h1>
                   <p className="text-gray-300 mt-2 italic text-sm mb-4">"Start your journey"</p>
                   <button 
-                      className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
-                      disabled={!isLaunched || isProcessing}
-                      onClick={() => isLaunched && handlePayment('Basic', 1500, 1)}
+                      className="pricing-btn btn-active" 
+                      disabled={isProcessing}
+                      onClick={() => handlePayment('Basic', 1500, 1)}
                   >
-                      {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
+                      {isProcessing ? "Processing..." : "Buy Now"}
                   </button>
                 </div>
 
@@ -300,11 +276,11 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
                     <h1 className="gold-glow text-5xl">₹9,999<span className="text-xl text-gray-400 font-normal">/yr</span></h1>
                     <p className="text-gray-300 mt-2 italic text-sm mb-4">"Best Value"</p>
                     <button 
-                        className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
-                        disabled={!isLaunched || isProcessing}
-                        onClick={() => isLaunched && handlePayment('Business', 9999, 12)}
+                        className="pricing-btn btn-active" 
+                        disabled={isProcessing}
+                        onClick={() => handlePayment('Business', 9999, 12)}
                     >
-                        {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
+                        {isProcessing ? "Processing..." : "Buy Now"}
                     </button>
                 </div>
 
@@ -318,11 +294,11 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
                     <h1 className="gold-glow text-5xl">₹3,500<span className="text-xl text-gray-400 font-normal">/3mo</span></h1>
                     <p className="text-gray-300 mt-2 italic text-sm mb-4">"Most Popular"</p>
                     <button 
-                        className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
-                        disabled={!isLaunched || isProcessing}
-                        onClick={() => isLaunched && handlePayment('Professional', 3500, 3)}
+                        className="pricing-btn btn-active" 
+                        disabled={isProcessing}
+                        onClick={() => handlePayment('Professional', 3500, 3)}
                     >
-                        {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
+                        {isProcessing ? "Processing..." : "Buy Now"}
                     </button>
                 </div>
         </div>

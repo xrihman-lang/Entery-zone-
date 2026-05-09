@@ -834,7 +834,7 @@ export default function App() {
                   <span className="text-[10px] uppercase opacity-70">Premium Active</span>
                   {expiryDate && (
                     <span className="text-[11px] font-black">
-                      Expires in: {Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} Days
+                      {Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} Days Remaining
                     </span>
                   )}
                 </div>
