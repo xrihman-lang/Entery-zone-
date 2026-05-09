@@ -120,8 +120,57 @@ export default function App() {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
-  const { isPremium, loading: premiumLoading } = usePremiumStatus(user);
+  const { isPremium, expiryDate, loading: premiumLoading } = usePremiumStatus(user);
   const [bulkInput, setBulkInput] = useState('');
+
+  // --- Auto-popup for Subscription ---
+  useEffect(() => {
+    if (premiumLoading || !user) return;
+
+    const checkAndPopup = () => {
+      let shouldPopup = false;
+      
+      if (!isPremium) {
+        shouldPopup = true;
+      } else if (expiryDate) {
+        const now = new Date();
+        const timeLeft = expiryDate.getTime() - now.getTime();
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        
+        // If expiry is within 1 day (but still premium)
+        if (timeLeft > 0 && timeLeft <= oneDayMs) {
+          shouldPopup = true;
+        }
+      }
+
+      if (shouldPopup) {
+        setIsSubscriptionModalOpen(true);
+        // Auto-hide after 15 seconds
+        setTimeout(() => {
+          setIsSubscriptionModalOpen(false);
+        }, 15000);
+      }
+    };
+
+    // Initial check (maybe wait a bit after login)
+    const initialTimeout = setTimeout(checkAndPopup, 30000); // 30 seconds after load/login
+
+    const popupInterval = setInterval(checkAndPopup, 300000); // Every 5 minutes
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(popupInterval);
+    };
+  }, [isPremium, premiumLoading, user, expiryDate]);
+  // ------------------------------------
+  const isNearExpiry = useMemo(() => {
+    if (!isPremium || !expiryDate) return false;
+    const now = new Date();
+    const timeLeft = expiryDate.getTime() - now.getTime();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    return timeLeft > 0 && timeLeft <= oneDayMs;
+  }, [isPremium, expiryDate]);
+
   const [bulkPreview, setBulkPreview] = useState<Entry[]>([]);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
   const [supportName, setSupportName] = useState('');
@@ -755,10 +804,25 @@ export default function App() {
             </button>
             <button 
               onClick={() => setIsSubscriptionModalOpen(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border border-blue-700 px-3 py-2 rounded-lg font-bold hover:from-blue-500 hover:to-indigo-500 transition-colors shadow-sm text-sm"
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold transition-all shadow-sm text-sm group ${
+                isPremium 
+                ? 'bg-yellow-100 text-yellow-700 border border-yellow-200 hover:bg-yellow-200' 
+                : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border border-blue-700 hover:from-blue-500 hover:to-indigo-500'
+              }`}
             >
-              <Crown size={16} />
-              Premium
+              <Crown size={16} className={isPremium ? "text-yellow-600" : "animate-bounce"} />
+              {isPremium ? (
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="text-[10px] uppercase opacity-70">Premium Active</span>
+                  {expiryDate && (
+                    <span className="text-[11px] font-black">
+                      Expires in: {Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} Days
+                    </span>
+                  )}
+                </div>
+              ) : (
+                "Premium"
+              )}
             </button>
             {user ? (
               <button 
@@ -1558,7 +1622,12 @@ export default function App() {
       )}
 
       {/* Subscription Modal */}
-      <SubscriptionModal isOpen={isSubscriptionModalOpen} onClose={() => setIsSubscriptionModalOpen(false)} user={user} />
+      <SubscriptionModal 
+        isOpen={isSubscriptionModalOpen} 
+        onClose={() => setIsSubscriptionModalOpen(false)} 
+        user={user} 
+        isNearExpiry={isNearExpiry}
+      />
 
       {/* Print styles */}
       <style>{`

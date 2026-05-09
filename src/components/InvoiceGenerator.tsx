@@ -30,7 +30,7 @@ interface InvoiceItem {
 
 export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved: () => void }) {
   const [billNo, setBillNo] = useState('');
-  const [brandName, setBrandName] = useState('Twinkle Enterprises');
+  const [brandName, setBrandName] = useState('GDX');
   const [brandAddress, setBrandAddress] = useState('Main Bazaar, New Delhi - 110001');
   const [industry, setIndustry] = useState<IndustryType>('General Grocery');
   const [gstin, setGstin] = useState('');
@@ -46,17 +46,8 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   const [jobNo, setJobNo] = useState('');
   const [technician, setTechnician] = useState('');
   
-  const { salesmen, activeSalesman, setActiveSalesman } = useSalesmen();
-  // By default use activeSalesman if any 
-  const [selectedSalesmanId, setSelectedSalesmanId] = useState<string>(activeSalesman?.id || '');
-
-  // Keep them synced
-  useEffect(() => {
-    if (selectedSalesmanId) {
-      const s = salesmen.find(x => x.id === selectedSalesmanId);
-      if (s) setActiveSalesman(s);
-    }
-  }, [selectedSalesmanId, salesmen, setActiveSalesman]);
+  const { salesmen } = useSalesmen();
+  // We no longer use selectedSalesmanId as per user request to remove "Order by" section
 
   const localDate = useLocalDate();
   const [invoiceDate, setInvoiceDate] = useState(getLocalDateString());
@@ -270,8 +261,6 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
 
       const batch = writeBatch(db);
 
-      const s = salesmen.find(x => x.id === selectedSalesmanId);
-
       // Create new invoice document
       const invoiceRef = doc(collection(db, 'invoices'));
       batch.set(invoiceRef, {
@@ -284,8 +273,8 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         waiterName: waiterName || null,
         jobNo: jobNo || null,
         technician: technician || null,
-        salesmanName: s?.name || null,
-        salesmanId: s?.id || null,
+        salesmanName: null,
+        salesmanId: null,
         gstin,
         customerName,
         customerPhone,
@@ -385,60 +374,48 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       <style>
       {`
         @media print {
-          @page { size: auto; margin: 5mm 10mm; }
+          @page { size: A4 landscape; margin: 10mm; }
           html, body { height: auto !important; overflow: visible !important; min-height: 100% !important; margin: 0 !important; padding: 0 !important; color: black !important; background: white !important; }
           .print\\:flex { display: flex !important; }
-          .print-fixed-header { position: fixed; top: 0; left: 0; right: 0; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 8px; }
-          .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 25px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; font-size: 8px; padding: 0 10mm; }
-          .print-content-spacer { padding-top: 55px; padding-bottom: 35px; height: auto !important; display: block !important; overflow: visible !important; }
-          table { page-break-inside: auto; width: 100%; border-collapse: collapse; table-layout: fixed; }
+          .print-fixed-header { position: static; top: auto; left: auto; right: auto; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 8px; margin-bottom: 15px; }
+          .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 35px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; font-size: 10px; padding: 0 10mm; }
+          .print-content-spacer { padding-top: 0px; padding-bottom: 35px; height: auto !important; display: block !important; overflow: visible !important; }
+          table { page-break-inside: auto; width: 100%; border-collapse: collapse; table-layout: fixed; border: 1px solid #d1d5db; }
           tr { page-break-inside: avoid; page-break-after: auto; }
-          thead { display: table-header-group; }
+          thead { display: table-header-group; background-color: #f3f4f6; }
           tfoot { display: table-footer-group; }
+          th { border: 1px solid #d1d5db; border-bottom: 2px solid #374151; padding: 8px; font-weight: 900; }
+          td { border: 1px solid #d1d5db; padding: 8px; }
           .print-avoid-break { page-break-inside: avoid !important; }
-          .watermark-text { position: fixed; pointer-events: none; }
+          .watermark-container { position: relative; z-index: 1; }
+          .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 12rem; font-weight: 900; color: rgba(0,0,0,0.03); z-index: -1; pointer-events: none; text-shadow: 2px 2px 5px rgba(0,0,0,0.01); white-space: nowrap; }
           input, select, textarea { border: none !important; padding: 0 !important; background: transparent !important; appearance: none !important; -webkit-appearance: none; color: black !important; }
-          .print-summary-label { font-weight: 800 !important; color: black !important; text-transform: uppercase; }
-          .print-grand-total { font-size: 1.25rem !important; font-weight: 900 !important; color: black !important; border-top: 2px solid black !important; margin-top: 4px; padding-top: 4px; }
+          .print-summary-label { font-weight: 800 !important; color: black !important; text-transform: uppercase; font-size: 14px; }
+          .print-grand-total { font-size: 1.5rem !important; font-weight: 900 !important; color: black !important; border-top: 2px solid black !important; margin-top: 4px; padding-top: 4px; }
           .print\\:hidden { display: none !important; }
         }
       `}
       </style>
 
-      {/* Global Watermark (Subtle on web, prominent on print) */}
-      <div className="watermark-text">
-         ZISHAN GDX
-      </div>
-
       {/* Brand Header for Print */}
       <div className="hidden print:flex print-fixed-header justify-between items-start" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-         <div className="flex-1">
-            <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">{brandName}</h1>
-            <p className="text-[10px] text-gray-600 font-bold mt-1 uppercase max-w-[250px]">{brandAddress}</p>
-            {gstin && <p className="text-[10px] text-gray-500 font-bold mt-0.5">GSTIN: {gstin}</p>}
-            
-            <div className="flex gap-4 mt-2 border-t border-gray-100 pt-1">
-               {industry === 'Cafe/Restaurant' && tableNumber && (
-                 <p className="text-[10px] font-bold text-gray-700">Table: {tableNumber} | Waiter: {waiterName}</p>
-               )}
-               {industry === 'Service Center' && jobNo && (
-                 <p className="text-[10px] font-bold text-gray-700">Job No: {jobNo} | Tech: {technician}</p>
-               )}
-            </div>
+         <div className="flex-1 text-center">
+            <h1 className="text-5xl font-black text-gray-900 tracking-tighter uppercase leading-none">{brandName}</h1>
+            <p className="text-xs text-gray-600 font-bold mt-1 uppercase mx-auto">{brandAddress}</p>
+            {gstin && <p className="text-xs text-gray-500 font-bold mt-0.5">GSTIN: {gstin}</p>}
          </div>
-         <div className="text-right">
+         <div className="text-right absolute top-4 right-4">
             <div className="bg-gray-900 text-white px-3 py-1 inline-block mb-1">
               <p className="text-sm font-black tracking-widest uppercase">Tax Invoice</p>
             </div>
             <p className="text-xs font-mono text-gray-800">Bill No: <span className="font-bold">{billNo}</span></p>
-            <p className="text-xs font-mono text-gray-800 mt-0.5">Category: {industry}</p>
          </div>
       </div>
       
       {/* Brand Footer for Print */}
       <div className="hidden print:flex print-fixed-footer">
-         <span className="text-[10px] text-gray-500 uppercase tracking-widest">Thank You for Your Business!</span>
-         <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Official Report by zishan gdx</span>
+         <span className="font-black text-gray-700 bg-gray-100 px-3 py-1 rounded text-xs uppercase border border-gray-300">Payment Status: <span className="text-green-700">PAID VIA UPI</span></span>
+         <span className="text-xs text-gray-500 uppercase tracking-widest font-bold">Thank You for Your Business! | Official Report by GDX</span>
       </div>
 
       <div className="p-6 print:p-0 print-content-spacer">
@@ -530,7 +507,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 print:hidden">
            <div className="md:col-span-2">
              <label className="block text-sm font-bold text-gray-700 mb-1">Company / Shop Name</label>
-             <input type="text" value={brandName} onChange={e => setBrandName(e.target.value)} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold" placeholder="Twinkle Enterprises" />
+             <input type="text" value={brandName} onChange={e => setBrandName(e.target.value)} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold" placeholder="GDX" />
            </div>
            <div className="md:col-span-2">
              <label className="block text-sm font-bold text-gray-700 mb-1">Shop Address</label>
@@ -610,21 +587,6 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                    <label className="block text-sm font-bold text-gray-700 mb-1 uppercase print:mb-0">Date:</label>
                    <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className="px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-900 print:border-none print:p-0" />
                 </div>
-                {salesmen.length > 0 && (
-                  <div className="print:flex print:gap-4 print:items-center">
-                    <label className="block text-sm font-bold text-gray-700 mb-1 uppercase print:mb-0 text-red-600">Order by:</label>
-                    <select 
-                      value={selectedSalesmanId} 
-                      onChange={e => setSelectedSalesmanId(e.target.value)}
-                      className="px-3 py-2 border rounded border-red-200 focus:ring-2 focus:ring-red-500 outline-none font-bold text-red-700 print:border-none print:p-0 bg-red-50"
-                    >
-                      <option value="">-- Select Salesman --</option>
-                      {salesmen.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
              </div>
            </div>
         </div>
@@ -656,143 +618,104 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
              </div>
           </div>
 
-          <table className="w-full text-left border-collapse print:border print:border-gray-300">
-            <thead>
-              <tr className="bg-[#EEEEEE] text-black print:bg-gray-200 print:text-black">
-                <th className="p-2 border print:border-gray-300 text-[10px] font-black w-8 text-center uppercase">#</th>
-                <th className="p-2 border print:border-gray-300 text-[10px] font-black uppercase">Item Description</th>
-                
-                {industry === 'Clothing Store' && (
-                  <>
-                    <th className="p-2 border print:border-gray-300 text-[10px] font-black w-14 text-center uppercase">Size</th>
-                    <th className="p-2 border print:border-gray-300 text-[10px] font-black w-16 text-center uppercase">Color</th>
-                    <th className="p-2 border print:border-gray-300 text-[10px] font-black w-20 text-center uppercase">HSN</th>
-                  </>
-                )}
-
-                <th className="p-2 border print:border-gray-300 text-[10px] font-black w-14 text-center uppercase">Qty</th>
-                <th className="p-2 border print:border-gray-300 text-[10px] font-black w-20 text-right uppercase">Price</th>
-                
-                {industry === 'Clothing Store' && (
-                  <th className="p-2 border print:border-gray-300 text-[10px] font-black w-14 text-center uppercase">Disc%</th>
-                )}
-
-                <th className="p-2 border print:border-gray-300 text-[10px] font-black w-24 text-right uppercase">Total</th>
-                <th className="p-2 border print:border-gray-300 text-[10px] font-black w-8 print:hidden"></th>
-              </tr>
-            </thead>
-            <tbody className="print:text-[10px]">
-              {/* Quick Add Row */}
-              <tr className="bg-blue-50/50 print:hidden border-b-2 border-blue-100">
-                <td className="p-2 text-center text-blue-400"><Plus size={14} className="mx-auto" /></td>
-                <td className="p-1">
-                  <input 
-                    ref={quickAddRef}
-                    type="text" 
-                    list="productNamesListInvoice" 
-                    value={quickAdd.name} 
-                    onChange={e => {
-                      const val = e.target.value;
-                      setQuickAdd(prev => {
-                        let newRate = prev.rate;
-                        if (productPrices[val] !== undefined) {
-                          newRate = productPrices[val][globalRateType];
-                        }
-                        return { ...prev, name: val, rate: newRate };
-                      });
-                    }}
-                    onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
-                    className="w-full outline-none bg-transparent font-bold text-xs py-1.5 px-2" 
-                    placeholder="Quick Add Item..." 
-                  />
-                </td>
-                
-                {industry === 'Clothing Store' && <td colSpan={3} className="bg-gray-50/50"></td>}
-
-                <td className="p-1">
-                  <input 
-                    type="number" 
-                    value={quickAdd.quantity} 
-                    onChange={e => setQuickAdd(prev => ({ ...prev, quantity: e.target.value === '' ? '' : Number(e.target.value) }))}
-                    onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
-                    className="w-full outline-none bg-transparent text-center font-bold text-xs py-1.5" 
-                  />
-                </td>
-                
-                <td className="p-1 text-right font-mono text-xs">
-                  <input 
-                    type="number" 
-                    min="0"
-                    value={quickAdd.rate} 
-                    onChange={e => setQuickAdd(prev => ({ ...prev, rate: e.target.value === '' ? '' : Number(e.target.value) }))}
-                    onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
-                    className="w-full outline-none bg-transparent text-right py-1.5"
-                    placeholder="Price"
-                  />
-                </td>
-
-                <td colSpan={industry === 'Clothing Store' ? 3 : 2} className="p-1 text-right pr-4">
-                   <button 
-                    onClick={() => handleQuickAdd()}
-                    className="bg-blue-600 text-white px-4 py-1 rounded text-[10px] font-black uppercase tracking-widest shadow-sm"
-                   >
-                     Add Item
-                   </button>
-                </td>
-              </tr>
-
-              {items.map((item, idx) => (
-                <tr key={item.id} className="border-b print:border-gray-300">
-                  <td className="p-2 border-x print:border-gray-300 text-center font-mono text-[10px] text-gray-500">{idx + 1}</td>
-                  <td className="p-1 border-x print:border-gray-300">
-                    <input type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full outline-none bg-transparent print:font-bold text-xs py-1" placeholder="Item Name" />
+          <div className="relative watermark-container z-10">
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -rotate-[30deg] text-[6rem] sm:text-[12rem] font-black text-black opacity-[0.03] pointer-events-none z-0 whitespace-nowrap select-none">
+                GDX
+            </div>
+            <table className="w-full text-left border-collapse relative z-10 print:border print:border-gray-300">
+              <thead>
+                <tr className="bg-[#EEEEEE] text-black print:bg-gray-200 print:text-black">
+                  <th className="p-2 print:p-3 border print:border-gray-300 text-xs font-black w-12 text-center uppercase">#</th>
+                  <th className="p-2 print:p-3 border print:border-gray-300 text-xs font-black uppercase">ITEM PARTICULARS</th>
+                  <th className="p-2 print:p-3 border print:border-gray-300 text-xs font-black w-24 text-center uppercase">QTY</th>
+                  <th className="p-2 print:p-3 border print:border-gray-300 text-xs font-black w-32 text-right uppercase">PRICE</th>
+                  <th className="p-2 print:p-3 border print:border-gray-300 text-xs font-black w-32 text-right uppercase">TOTAL</th>
+                  <th className="p-2 border print:border-gray-300 text-xs font-black w-8 print:hidden"></th>
+                </tr>
+              </thead>
+              <tbody className="print:text-sm">
+                {/* Quick Add Row */}
+                <tr className="bg-blue-50/50 print:hidden border-b-2 border-blue-100">
+                  <td className="p-2 text-center text-blue-400"><Plus size={16} className="mx-auto" /></td>
+                  <td className="p-2">
+                    <input 
+                      ref={quickAddRef}
+                      type="text" 
+                      list="productNamesListInvoice" 
+                      value={quickAdd.name} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        setQuickAdd(prev => {
+                          let newRate = prev.rate;
+                          if (productPrices[val] !== undefined) {
+                            newRate = productPrices[val][globalRateType];
+                          }
+                          return { ...prev, name: val, rate: newRate };
+                        });
+                      }}
+                      onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+                      className="w-full outline-none bg-transparent font-bold text-sm py-1.5 px-2" 
+                      placeholder="Quick Add Item..." 
+                    />
+                  </td>
+                  
+                  <td className="p-2">
+                    <input 
+                      type="number" 
+                      value={quickAdd.quantity} 
+                      onChange={e => setQuickAdd(prev => ({ ...prev, quantity: e.target.value === '' ? '' : Number(e.target.value) }))}
+                      onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+                      className="w-full outline-none bg-transparent text-center font-bold text-sm py-1.5" 
+                    />
+                  </td>
+                  
+                  <td className="p-2 text-right font-mono text-sm">
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={quickAdd.rate} 
+                      onChange={e => setQuickAdd(prev => ({ ...prev, rate: e.target.value === '' ? '' : Number(e.target.value) }))}
+                      onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+                      className="w-full outline-none bg-transparent text-right py-1.5"
+                      placeholder="Price"
+                    />
                   </td>
 
-                  {industry === 'Clothing Store' && (
-                    <>
-                      <td className="p-1 border-x print:border-gray-300">
-                        <input type="text" value={item.size || ''} onChange={e => handleItemChange(item.id, 'size', e.target.value)} className="w-full outline-none bg-transparent text-center text-[10px] uppercase font-bold" placeholder="L/XL" />
-                      </td>
-                      <td className="p-1 border-x print:border-gray-300">
-                        <input type="text" value={item.color || ''} onChange={e => handleItemChange(item.id, 'color', e.target.value)} className="w-full outline-none bg-transparent text-center text-[10px]" placeholder="Blue" />
-                      </td>
-                      <td className="p-1 border-x print:border-gray-300">
-                        <input type="text" value={item.hsnCode || ''} onChange={e => handleItemChange(item.id, 'hsnCode', e.target.value)} className="w-full outline-none bg-transparent text-center text-[10px] font-mono" placeholder="6205" />
-                      </td>
-                    </>
-                  )}
-
-                  <td className="p-1 border-x print:border-gray-300">
-                    <input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', Number(e.target.value))} className="w-full outline-none bg-transparent text-center font-mono text-xs py-1" />
-                  </td>
-                  <td className="p-1 border-x print:border-gray-300 text-right font-mono text-xs">
-                    <input type="number" min="0" value={item.rate || ''} onChange={e => handleItemChange(item.id, 'rate', Number(e.target.value))} className="w-full outline-none bg-transparent text-right py-1" placeholder="0.00" />
-                  </td>
-
-                  {industry === 'Clothing Store' && (
-                    <td className="p-1 border-x print:border-gray-300">
-                      <input type="number" min="0" max="100" value={item.itemDiscountPercent || 0} onChange={e => handleItemChange(item.id, 'itemDiscountPercent', Number(e.target.value))} className="w-full outline-none bg-transparent text-center text-[10px] font-bold text-green-600" />
-                    </td>
-                  )}
-
-                  <td className="p-2 border-x print:border-gray-300 text-right font-mono tracking-tight text-gray-800 text-xs">
-                    {((item.quantity * item.rate) - (item.itemDiscountPercent ? (item.quantity * item.rate * item.itemDiscountPercent / 100) : 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-1 border-x print:border-gray-300 text-center print:hidden">
-                    <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:text-red-700 p-1">
-                      <Trash2 size={14} />
-                    </button>
+                  <td colSpan={2} className="p-2 text-right pr-4">
+                     <button 
+                      onClick={() => handleQuickAdd()}
+                      className="bg-blue-600 text-white px-4 py-2 rounded text-xs font-black uppercase tracking-widest shadow-sm hover:bg-blue-700 transition"
+                     >
+                       Add Item
+                     </button>
                   </td>
                 </tr>
-              ))}
-              {/* Summary Row for Print */}
-              <tr className="bg-gray-50 print:bg-gray-100 hidden print:table-row">
-                 <td colSpan={2} className="p-2 text-right font-bold text-xs">Total Qty (Dabba):</td>
-                 <td className="p-2 text-center font-black text-xs border border-gray-300">{totalQty}</td>
-                 <td colSpan={gstEnabled ? 3 : 2} className="p-2 text-right font-bold text-xs">Page Summary</td>
-              </tr>
-            </tbody>
-          </table>
+
+                {items.map((item, idx) => (
+                  <tr key={item.id} className="border-bottom print:border-gray-300">
+                    <td className="p-2 print:p-3 print:border text-center font-mono text-sm text-gray-500">{idx + 1}</td>
+                    <td className="p-2 print:p-3 print:border">
+                      <input type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full outline-none bg-transparent print:font-bold text-sm py-1" placeholder="Item Name" />
+                    </td>
+                    <td className="p-2 print:p-3 print:border">
+                      <input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', Number(e.target.value))} className="w-full outline-none bg-transparent text-center font-mono text-sm py-1" />
+                    </td>
+                    <td className="p-2 print:p-3 print:border text-right font-mono text-sm">
+                      <input type="number" min="0" value={item.rate || ''} onChange={e => handleItemChange(item.id, 'rate', Number(e.target.value))} className="w-full outline-none bg-transparent text-right py-1" placeholder="0.00" />
+                    </td>
+                    <td className="p-2 print:p-3 print:border text-right font-mono tracking-tight text-gray-800 text-sm font-bold">
+                      {(item.quantity * item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-2 text-center print:hidden">
+                      <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:text-red-700 p-2">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           
           <div className="mt-4 print:hidden">
              <button onClick={handleAddItem} className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-bold text-sm bg-blue-50 px-4 py-2 rounded">
@@ -801,13 +724,20 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between gap-8 py-4 border-t-2 border-gray-800 dark:border-gray-200 print:border-none print:py-0 print:items-end print:text-right print-avoid-break">
+        <div className="flex flex-col md:flex-row justify-between gap-8 py-4 print:py-0 print:items-end print:text-right print-avoid-break mt-6">
            
+           <div className="hidden print:block w-1/2 text-left">
+             <div className="border border-gray-300 p-4 rounded-lg bg-gray-50">
+               <span className="font-bold text-gray-700 text-sm uppercase block mb-1">Amount in Words:</span>
+               <span className="font-bold text-gray-900 uppercase italic text-sm">{numberToWords(grandTotal)}</span>
+             </div>
+           </div>
+
            <div className="w-full md:w-1/2 ml-auto print:w-1/2 print:ml-auto">
               <div className="bg-gray-50 p-6 rounded border border-gray-200 print:bg-transparent print:border-none print:p-0">
-                  <div className="flex justify-between mb-2 print:text-black">
-                    <span className="font-bold text-gray-600 print:text-black print-summary-label text-sm">Taxable Subtotal:</span>
-                    <span className="font-mono text-gray-800 print:text-black text-sm">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <div className="flex justify-between mb-3 border-b border-gray-200 print:border-gray-400 pb-2 print:text-black">
+                    <span className="font-bold text-gray-600 print:text-black print-summary-label">GROSS AMOUNT:</span>
+                    <span className="font-mono font-bold text-gray-800 print:text-black text-base">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
 
                   <div className="flex justify-between items-center mb-2 print:hidden">
@@ -822,14 +752,14 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
 
                   {gstEnabled && totalTax > 0 && (
                     <>
-                      <div className="flex justify-between mb-2 text-xs print:text-black">
-                         <span className="font-medium text-gray-600 print:text-black print-summary-label">Total GST ({globalTaxPercent}%):</span>
-                         <span className="font-mono text-gray-800 print:text-black">₹{totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <div className="flex justify-between mb-3 border-b border-gray-200 print:border-gray-400 pb-2 text-sm print:text-black">
+                         <span className="font-bold text-gray-600 print:text-black print-summary-label">TOTAL SGST + CGST:</span>
+                         <span className="font-mono font-bold text-gray-800 print:text-black text-base">₹{totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
                     </>
                   )}
                   
-                  <div className="flex justify-between items-center mb-4 border-b border-gray-300 pb-4 print:hidden">
+                  <div className="flex justify-between items-center mb-4 border-b border-gray-300 print:border-gray-400 pb-4 print:hidden">
                     <span className="font-bold text-gray-600">Manual Discount (₹):</span>
                     <div className="flex items-center gap-2">
                        <input 
@@ -843,81 +773,49 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                   </div>
 
                   {discountAmount > 0 && (
-                    <div className="flex justify-between mb-2 text-sm text-green-700 print:text-black border-b border-gray-200 pb-2 print:border-gray-800">
+                    <div className="flex justify-between mb-3 text-sm text-green-700 print:text-black border-b border-gray-200 print:border-gray-400 pb-2">
                        <span className="font-bold print-summary-label">DISCOUNT:</span>
-                       <span className="font-mono font-bold">-₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                       <span className="font-mono font-bold text-base">-₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}
-                 <div className="flex justify-between items-center mt-2 print-grand-total">
-                    <span className="text-xl font-bold text-gray-900 print:text-black print-summary-label">GRAND TOTAL:</span>
-                    <span className="text-2xl font-black font-mono text-blue-600 print:text-black">₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                 </div>
+
+                  <div className="flex justify-between items-center mt-4 print-grand-total">
+                     <span className="text-xl font-black text-gray-900 print:text-black print-summary-label">NET PAYABLE:</span>
+                     <span className="text-3xl font-black font-mono text-blue-600 print:text-black">₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
               </div>
            </div>
         </div>
 
-        {/* Tax Details Table & Amount in Words */}
-        {gstEnabled && (
-          <div className="mt-4 border border-gray-200 rounded p-4 bg-gray-50 print:border-gray-800 print:bg-white print:p-0 print:border-none print:mt-4 pb-6 print:pb-0">
-            <h4 className="font-bold text-gray-700 mb-2 uppercase text-xs border-b pb-1">Tax Details</h4>
-            <table className="w-full text-left border-collapse text-xs mb-4 print:border-gray-400">
-              <thead>
-                <tr className="bg-gray-200 print:bg-gray-100 text-gray-800">
-                  <th className="p-2 border border-gray-300 print:border-gray-400">Taxable</th>
-                  <th className="p-2 border border-gray-300 print:border-gray-400">CGST</th>
-                  <th className="p-2 border border-gray-300 print:border-gray-400">SGST</th>
-                  <th className="p-2 border border-gray-300 print:border-gray-400">Total Tax</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  <td className="p-2 border border-gray-300 print:border-gray-400 font-mono text-gray-800">₹{totalTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-        
-        <div className="mt-4 flex flex-col gap-1">
+        <div className="mt-4 print:hidden flex flex-col gap-1">
           <span className="font-bold text-gray-700 text-xs">Amount in Words:</span>
           <span className="font-bold text-gray-900 uppercase italic bg-gray-50 px-3 py-1.5 rounded w-fit text-sm border-l-4 border-blue-600 print:border-none print:px-0 print:bg-transparent">{numberToWords(grandTotal)}</span>
         </div>
         
-        <div className="mt-8 flex justify-end gap-4 print:hidden">
-          <button 
-             onClick={() => {
-               setCustomerName('');
-               setCustomerPhone('');
-               setGstin('');
-               setCustomerAddress('');
-               setWaiterName('');
-               setJobNo('');
-               setTechnician('');
-               setItems([]);
-               setManualDiscountAmount(0);
-               showToast('Cleared!', 'success');
-             }}
-             className="flex items-center gap-2 bg-red-50 text-red-600 px-6 py-3 rounded-md font-bold hover:bg-red-100 transition-colors"
-          >
-            Clear
-          </button>
-          
+        <div className="mt-8 flex flex-wrap justify-end gap-4 print:hidden">
           <button 
              onClick={() => window.print()}
-             className="flex items-center gap-2 bg-blue-100 text-blue-700 px-6 py-3 rounded-md font-bold hover:bg-blue-200 transition-colors"
+             className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-md font-bold hover:bg-green-700 transition-colors shadow-sm"
           >
-            <Printer size={18} /> Print Bill
+            <Printer size={18} /> PRINT INVOICE
           </button>
 
           <button 
              onClick={handleSaveBill}
              disabled={saving || !user}
-             className="flex items-center gap-2 bg-gray-800 text-white px-6 py-3 rounded-md font-bold hover:bg-gray-900 transition-colors disabled:opacity-50"
+             className="flex items-center gap-2 bg-gray-900 text-white px-6 py-3 rounded-md font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 shadow-sm"
           >
-            <Save size={18} /> {saving ? 'Generating...' : 'Generate Bill'}
+            <Save size={18} /> {saving ? 'SAVING...' : 'SAVE CLOUD'}
+          </button>
+          
+          <button 
+             onClick={() => {
+                const message = `*Invoice: ${billNo}*\nAmount: ₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\nDate: ${invoiceDate}\nThank you!`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+             }}
+             className="flex items-center gap-2 bg-[#25D366] text-white px-6 py-3 rounded-md font-bold hover:bg-[#128C7E] transition-colors shadow-sm"
+          >
+            <Send size={18} /> SHARE VIA WHATSAPP BUSINESS
           </button>
         </div>
       </div>

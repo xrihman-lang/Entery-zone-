@@ -10,11 +10,13 @@ interface SubscriptionData {
 
 export const usePremiumStatus = (user: FirebaseUser | null) => {
   const [isPremium, setIsPremium] = useState(false);
+  const [expiryDate, setExpiryDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
       setIsPremium(false);
+      setExpiryDate(null);
       setLoading(false);
       return;
     }
@@ -34,10 +36,19 @@ export const usePremiumStatus = (user: FirebaseUser | null) => {
           const data = docSnap.data();
           if (data.isPremium && data.expiryDate) {
             const expiry = data.expiryDate.toDate ? data.expiryDate.toDate() : new Date(data.expiryDate);
+            setExpiryDate(expiry);
             if (expiry > new Date()) {
               setIsPremium(true);
+            } else {
+              setIsPremium(false);
             }
+          } else {
+            setIsPremium(false);
+            setExpiryDate(null);
           }
+        } else {
+          setIsPremium(false);
+          setExpiryDate(null);
         }
       } catch (error) {
         console.error('Error fetching premium status', error);
@@ -49,5 +60,5 @@ export const usePremiumStatus = (user: FirebaseUser | null) => {
     fetchPremiumStatus();
   }, [user]);
 
-  return { isPremium, loading };
+  return { isPremium, expiryDate, loading };
 };

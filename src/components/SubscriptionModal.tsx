@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Crown, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { doc, setDoc } from 'firebase/firestore';
 import { getFirebase } from '../lib/firebase';
@@ -12,7 +12,7 @@ const loadRazorpay = () => new Promise((resolve) => {
     document.body.appendChild(script);
 });
 
-export default function SubscriptionModal({ isOpen, onClose, user }: { isOpen: boolean, onClose: () => void, user: any }) {
+export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry }: { isOpen: boolean, onClose: () => void, user: any, isNearExpiry?: boolean }) {
   const launchDate = new Date("2026-05-10T00:00:00Z");
   const [isLaunched, setIsLaunched] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
@@ -57,7 +57,7 @@ export default function SubscriptionModal({ isOpen, onClose, user }: { isOpen: b
 
                   await setDoc(doc(db, 'users', user.uid), {
                       isPremium: true,
-                      premiumExpiryDate: expiryDate.toISOString(),
+                      expiryDate: expiryDate.toISOString(),
                       updatedAt: new Date().toISOString()
                   }, { merge: true });
 
@@ -96,6 +96,22 @@ export default function SubscriptionModal({ isOpen, onClose, user }: { isOpen: b
         className="fixed inset-0 z-[200] overflow-y-auto w-full h-full"
         style={{ perspective: '1000px', background: 'radial-gradient(circle at center, #1a1a1a 0%, #050505 100%)' }}
       >
+        {isNearExpiry && (
+          <div className="fixed top-[80px] left-1/2 transform -translate-x-1/2 z-[201] w-full max-w-md px-4">
+            <motion.div 
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="bg-red-600/90 backdrop-blur-md text-white p-4 rounded-2xl border border-red-400 shadow-[0_0_20px_rgba(220,38,38,0.5)] flex items-center justify-center gap-3"
+            >
+              <ShieldAlert className="animate-pulse" />
+              <div className="flex flex-col">
+                <span className="font-black uppercase tracking-tighter text-sm">Urgent: Subscription Ending Soon!</span>
+                <span className="text-[10px] opacity-80 uppercase font-bold tracking-widest">Renew now to maintain your cloud data & premium features</span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {/* Close Button */}
         <button 
           onClick={onClose}
@@ -228,45 +244,85 @@ export default function SubscriptionModal({ isOpen, onClose, user }: { isOpen: b
         )}
 
         <div className="pricing-wrap">
+            {/* Why Premium Section */}
+            <div className="w-full text-center mb-12 cursor-pointer group" onClick={() => isLaunched && handlePayment('Business', 9999, 12)}>
+              <motion.h2 
+                initial={{ y: 20, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                className="text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tighter group-hover:text-yellow-500 transition-colors"
+              >
+                Unlock the <span className="text-yellow-500">Power</span> of GDX
+              </motion.h2>
+              <div className="flex flex-wrap justify-center gap-4 text-gray-400 text-sm font-bold uppercase tracking-widest bg-white/5 py-4 rounded-xl border border-white/10 group-hover:border-yellow-500 transition-all">
+                <span className="flex items-center gap-2"><Crown size={14} className="text-yellow-500" /> Unlimited Entries</span>
+                <span className="flex items-center gap-2"><Crown size={14} className="text-yellow-500" /> Auto Cloud Backup</span>
+                <span className="flex items-center gap-2"><Crown size={14} className="text-yellow-500" /> WhatsApp Sharing</span>
+                <span className="flex items-center gap-2"><Crown size={14} className="text-yellow-500" /> 1-Click Reports</span>
+              </div>
+              
+              <button 
+                className="mt-8 bg-yellow-500 text-black px-8 py-4 rounded-full font-black text-xl hover:bg-yellow-400 transition-all transform hover:scale-110 shadow-[0_0_30px_rgba(212,175,55,0.4)] animate-pulse"
+              >
+                Claim Premium Now
+              </button>
+              <p className="text-white/40 text-[10px] uppercase tracking-widest mt-4 font-bold">↑ Click anywhere above to start ↑</p>
+            </div>
+
             <div className="card-3d w-full max-w-sm" style={{ animationDelay: '0.2s' }}>
-                <h3 className="text-2xl font-bold mb-2">Basic Plan</h3>
-                <h1 className="gold-glow text-5xl">₹1,500<span className="text-xl text-gray-400 font-normal">/mo</span></h1>
-                <p className="text-gray-300 mt-2 italic text-sm mb-4">"Start your journey"</p>
-                <button 
-                    className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
-                    disabled={!isLaunched || isProcessing}
-                    onClick={() => isLaunched && handlePayment('Basic', 1500, 1)}
-                >
-                    {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
-                </button>
-            </div>
+                  <div className="text-left w-full mb-6 text-xs space-y-2 opacity-80 border-b border-white/10 pb-4">
+                    <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Cloud Sync & 24/7 Backup</p>
+                    <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Professional PDF Reports</p>
+                    <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Detailed Stock Tracking</p>
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Basic Plan</h3>
+                  <h1 className="gold-glow text-5xl">₹1,500<span className="text-xl text-gray-400 font-normal">/mo</span></h1>
+                  <p className="text-gray-300 mt-2 italic text-sm mb-4">"Start your journey"</p>
+                  <button 
+                      className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
+                      disabled={!isLaunched || isProcessing}
+                      onClick={() => isLaunched && handlePayment('Basic', 1500, 1)}
+                  >
+                      {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
+                  </button>
+                </div>
 
-            <div className="card-3d w-full max-w-sm" style={{ animationDelay: '0.4s', border: '2px solid #d4af37' }}>
-                <span style={{ position: 'absolute', top: '0', background: '#d4af37', color: '#000', padding: '4px 15px', borderRadius: '0 0 10px 10px', fontSize: '12px', fontWeight: 'bold' }}>Recommended</span>
-                <h3 className="text-2xl font-bold mb-2 mt-4">Business Elite</h3>
-                <h1 className="gold-glow text-5xl">₹9,999<span className="text-xl text-gray-400 font-normal">/yr</span></h1>
-                <p className="text-gray-300 mt-2 italic text-sm mb-4">"Best Value"</p>
-                <button 
-                    className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
-                    disabled={!isLaunched || isProcessing}
-                    onClick={() => isLaunched && handlePayment('Business', 9999, 12)}
-                >
-                    {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
-                </button>
-            </div>
+                <div className="card-3d w-full max-w-sm" style={{ animationDelay: '0.4s', border: '2px solid #d4af37' }}>
+                    <span style={{ position: 'absolute', top: '0', background: '#d4af37', color: '#000', padding: '4px 15px', borderRadius: '0 0 10px 10px', fontSize: '12px', fontWeight: 'bold' }}>Recommended</span>
+                    <div className="text-left w-full mb-6 text-xs space-y-2 opacity-90 border-b border-white/10 pb-4 mt-4">
+                      <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Everything in Basic</p>
+                      <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Priority WhatsApp Support</p>
+                      <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Custom GST Invoices</p>
+                      <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Salesmen Management</p>
+                    </div>
+                    <h3 className="text-2xl font-bold mb-2">Business Elite</h3>
+                    <h1 className="gold-glow text-5xl">₹9,999<span className="text-xl text-gray-400 font-normal">/yr</span></h1>
+                    <p className="text-gray-300 mt-2 italic text-sm mb-4">"Best Value"</p>
+                    <button 
+                        className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
+                        disabled={!isLaunched || isProcessing}
+                        onClick={() => isLaunched && handlePayment('Business', 9999, 12)}
+                    >
+                        {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
+                    </button>
+                </div>
 
-            <div className="card-3d w-full max-w-sm" style={{ animationDelay: '0.6s' }}>
-                <h3 className="text-2xl font-bold mb-2">Professional</h3>
-                <h1 className="gold-glow text-5xl">₹3,500<span className="text-xl text-gray-400 font-normal">/3mo</span></h1>
-                <p className="text-gray-300 mt-2 italic text-sm mb-4">"Most Popular"</p>
-                <button 
-                    className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
-                    disabled={!isLaunched || isProcessing}
-                    onClick={() => isLaunched && handlePayment('Professional', 3500, 3)}
-                >
-                    {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
-                </button>
-            </div>
+                <div className="card-3d w-full max-w-sm" style={{ animationDelay: '0.6s' }}>
+                    <div className="text-left w-full mb-6 text-xs space-y-2 opacity-80 border-b border-white/10 pb-4">
+                      <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Everything in Basic</p>
+                      <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> 3-Month Data Retention</p>
+                      <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Multi-device Access</p>
+                    </div>
+                    <h3 className="text-2xl font-bold mb-2">Professional</h3>
+                    <h1 className="gold-glow text-5xl">₹3,500<span className="text-xl text-gray-400 font-normal">/3mo</span></h1>
+                    <p className="text-gray-300 mt-2 italic text-sm mb-4">"Most Popular"</p>
+                    <button 
+                        className={`pricing-btn ${isLaunched ? 'btn-active' : 'btn-disabled'}`} 
+                        disabled={!isLaunched || isProcessing}
+                        onClick={() => isLaunched && handlePayment('Professional', 3500, 3)}
+                    >
+                        {isProcessing ? "Processing..." : (isLaunched ? "Buy Now" : "Pre-register")}
+                    </button>
+                </div>
         </div>
 
       </motion.div>
