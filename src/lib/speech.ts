@@ -11,19 +11,31 @@ export const speak = (text: string, voiceType: 'professional' | 'sweet' = 'profe
 
   const utterance = new SpeechSynthesisUtterance(text);
   
-  // Try to find a female voice
+  // Set language to Hindi as requested
+  utterance.lang = 'hi-IN';
+  
+  // Try to find a female Hindi voice
   const voices = window.speechSynthesis.getVoices();
   
-  // Common female voice names/keywords across different browsers/OS
-  const femaleVoiceKeywords = ['female', 'google uk english female', 'samantha', 'victoria', 'premium', 'zira', 'amy'];
+  // Look for Hindi female voices first
+  const hindiFemaleKeywords = ['hindi', 'hi-in', 'female', 'google hi-in'];
   
   let selectedVoice = voices.find(v => 
-    femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))
+    v.lang.toLowerCase().includes('hi') && 
+    hindiFemaleKeywords.some(kw => v.name.toLowerCase().includes(kw))
   );
 
-  // If no explicit female voice found, try to find one by language or just pick index 1-2 which are often female
+  // Fallback to any Hindi voice
   if (!selectedVoice) {
-    selectedVoice = voices.find(v => v.lang.startsWith('en'));
+    selectedVoice = voices.find(v => v.lang.startsWith('hi'));
+  }
+
+  // Fallback to English female if no Hindi found (browser-specific)
+  if (!selectedVoice) {
+    const femaleVoiceKeywords = ['female', 'google uk english female', 'samantha', 'victoria', 'premium', 'zira', 'amy'];
+    selectedVoice = voices.find(v => 
+      femaleVoiceKeywords.some(kw => v.name.toLowerCase().includes(kw))
+    );
   }
 
   if (selectedVoice) {
@@ -32,8 +44,8 @@ export const speak = (text: string, voiceType: 'professional' | 'sweet' = 'profe
 
   // Adjust pitch/rate for 'sweet' vs 'professional'
   if (voiceType === 'sweet') {
-    utterance.pitch = 1.2;
-    utterance.rate = 0.9;
+    utterance.pitch = 1.1; // Slightly lowered from 1.2 to sound better in Hindi
+    utterance.rate = 0.85; // Slightly slower for clarity
   } else {
     utterance.pitch = 1.0;
     utterance.rate = 1.0;

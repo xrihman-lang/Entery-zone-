@@ -168,7 +168,7 @@ export default function App() {
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       const message = "Are you sure you want to close GDX Website? Please confirm your action.";
-      speak(message, 'professional');
+      speak('GDX Zishan website istemal karne ke liye shukriya', 'professional');
       e.preventDefault();
       e.returnValue = message;
       return message;
@@ -386,9 +386,9 @@ export default function App() {
     if (!formData.customerName || !formData.totalAmount) return;
 
     if (!editingId) {
-      speak('New row added', 'professional');
+      speak('Nayi entry joad di gayi hai', 'professional');
     } else {
-      speak('Entry saved successfully', 'professional');
+      speak('Entry surakshit kar li gayi hai', 'professional');
     }
 
     const total = parseFloat(formData.totalAmount || '0');
@@ -637,7 +637,7 @@ export default function App() {
       });
 
       await Promise.all(promises);
-      speak('Data imported successfully', 'professional');
+      speak('Data successfully paste ho gaya hai', 'professional');
       showToast(`${bulkPreview.length} entries saved to Cloud!`);
       setBulkPreview([]);
       setBulkInput('');
@@ -736,11 +736,11 @@ export default function App() {
 
     const safeMonthName = monthName.replace(/\s+/g, '_');
     doc.save(`Daybook_Report_${safeMonthName}_${filterYear}.pdf`);
-    speak('Bill generated. Ready to print', 'professional');
+    speak('Bill taiyar hai, ab aap print kar sakte hain', 'professional');
   };
 
   const handlePrint = () => {
-    speak('Bill generated. Ready to print', 'professional');
+    speak('Bill taiyar hai, ab aap print kar sakte hain', 'professional');
     window.print();
   };
 

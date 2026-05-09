@@ -97,7 +97,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   };
 
   const handleAddItem = () => {
-    speak('New row added', 'professional');
+    speak('Nayi entry joad di gayi hai', 'professional');
     const newItem = { id: Date.now().toString(), name: '', quantity: 1, rate: 0, gstPercent: gstEnabled ? 18 : 0 };
     setItems([...items, newItem]);
   };
@@ -106,7 +106,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
     e?.preventDefault();
     if (!quickAdd.name) return;
 
-    speak('New row added', 'professional');
+    speak('Nayi entry joad di gayi hai', 'professional');
     const rate = quickAdd.rate !== '' ? Number(quickAdd.rate) : (productPrices[quickAdd.name] ? productPrices[quickAdd.name][globalRateType] : 0);
     const newItem: InvoiceItem = {
       id: crypto.randomUUID(),
@@ -217,7 +217,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       setItems((prevItems) => {
         return [...prevItems, ...importedItems];
       });
-      speak('Data imported successfully', 'professional');
+      speak('Data successfully paste ho gaya hai', 'professional');
       showToast(`${importedItems.length} items imported!`);
       setIsBulkImportOpen(false);
       setBulkImportText('');
@@ -338,7 +338,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
 
       await batch.commit();
 
-      speak('Data synced to GDX Cloud', 'professional');
+      speak('Data GDX cloud par save ho gaya hai', 'professional');
       showToast('Bill Saved Successfully! Stock deducted.');
       // Auto refresh form
       setCustomerName('');
@@ -817,7 +817,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
         <div className="mt-8 flex flex-wrap justify-end gap-4 print:hidden">
           <button 
              onClick={() => {
-                speak('Bill generated. Ready to print', 'professional');
+                speak('Bill taiyar hai, ab aap print kar sakte hain', 'professional');
                 window.print();
              }}
              className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-md font-bold hover:bg-green-700 transition-colors shadow-sm"
