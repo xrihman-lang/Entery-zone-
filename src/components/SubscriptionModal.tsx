@@ -3,6 +3,7 @@ import { X, Crown, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { doc, setDoc } from 'firebase/firestore';
 import { getFirebase } from '../lib/firebase';
+import { speak } from '../lib/speech';
 
 const loadRazorpay = () => new Promise((resolve) => {
     const script = document.createElement('script');
@@ -114,6 +115,7 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
 
         {/* Close Button */}
         <button 
+          onMouseEnter={() => speak('Thank you for using GDX Zishan Website', 'sweet')}
           onClick={onClose}
           className="fixed top-6 right-6 text-gray-400 hover:text-white transition-colors z-[99999] p-2 bg-black/50 rounded-full"
         >

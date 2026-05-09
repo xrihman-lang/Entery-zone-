@@ -40,6 +40,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { Logo } from './components/Logo';
 import { useProductPrices } from './hooks/useProductPrices';
 import { useLocalDate, getLocalDateString } from './hooks/useLocalDate';
+import { speak } from './lib/speech';
 
 // --- Error Handling Utility ---
 enum OperationType {
@@ -181,6 +182,12 @@ export default function App() {
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     const id = crypto.randomUUID();
     setToasts(prev => [...prev, { id, message, type }]);
+    
+    // Voice Feedback for Success
+    if (type === 'success' && (message.toLowerCase().includes('saved') || message.toLowerCase().includes('successful') || message.toLowerCase().includes('updated'))) {
+      speak('Entry Successful', 'professional');
+    }
+
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
@@ -761,7 +768,12 @@ export default function App() {
                 }`}
               >
                 {toast.type === 'success' ? <Star size={18} fill="currentColor" /> : <X size={18} />}
-                {toast.message}
+                <div className="flex flex-col">
+                  <span>{toast.message}</span>
+                  {isPremium && (toast.message.toLowerCase().includes('saved') || toast.message.toLowerCase().includes('successful') || toast.message.toLowerCase().includes('updated')) && (
+                    <span className="text-[8px] opacity-70 uppercase tracking-widest font-black">AI Voice Active</span>
+                  )}
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>
@@ -804,12 +816,18 @@ export default function App() {
             </button>
             <button 
               onClick={() => setIsSubscriptionModalOpen(true)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold transition-all shadow-sm text-sm group ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold transition-all shadow-sm text-sm group relative ${
                 isPremium 
                 ? 'bg-yellow-100 text-yellow-700 border border-yellow-200 hover:bg-yellow-200' 
                 : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border border-blue-700 hover:from-blue-500 hover:to-indigo-500'
               }`}
             >
+              {isPremium && (
+                <div className="absolute -top-1 -right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
+                </div>
+              )}
               <Crown size={16} className={isPremium ? "text-yellow-600" : "animate-bounce"} />
               {isPremium ? (
                 <div className="flex flex-col items-start leading-tight">
@@ -1382,7 +1400,16 @@ export default function App() {
               </p>
             </div>
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-              <button onClick={() => setIsAboutOpen(false)} className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none">Close</button>
+              <button 
+                onMouseEnter={() => isPremium && speak('Thank you for using GDX Zishan Website', 'sweet')}
+                onClick={() => setIsAboutOpen(false)} 
+                className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
+              >
+                {isPremium && (
+                  <span className="absolute -top-2 -right-2 bg-yellow-400 text-[8px] text-black px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter shadow-sm border border-black/10 opacity-0 group-hover:opacity-100 transition-opacity">Voice Active</span>
+                )}
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -1431,7 +1458,16 @@ export default function App() {
             </div>
             
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-              <button onClick={() => setIsPrivacyOpen(false)} className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none">Understood</button>
+              <button 
+                onMouseEnter={() => isPremium && speak('Thank you for using GDX Zishan Website', 'sweet')}
+                onClick={() => setIsPrivacyOpen(false)} 
+                className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
+              >
+                {isPremium && (
+                  <span className="absolute -top-2 -right-2 bg-yellow-400 text-[8px] text-black px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter shadow-sm border border-black/10 opacity-0 group-hover:opacity-100 transition-opacity">Voice Active</span>
+                )}
+                Understood
+              </button>
             </div>
           </div>
         </div>
@@ -1466,7 +1502,16 @@ export default function App() {
             </div>
             
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-              <button onClick={() => setIsTermsOpen(false)} className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none">Understood</button>
+              <button 
+                onMouseEnter={() => isPremium && speak('Thank you for using GDX Zishan Website', 'sweet')}
+                onClick={() => setIsTermsOpen(false)} 
+                className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
+              >
+                {isPremium && (
+                  <span className="absolute -top-2 -right-2 bg-yellow-400 text-[8px] text-black px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter shadow-sm border border-black/10 opacity-0 group-hover:opacity-100 transition-opacity">Voice Active</span>
+                )}
+                Understood
+              </button>
             </div>
           </div>
         </div>
@@ -1499,7 +1544,16 @@ export default function App() {
             </div>
             
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-              <button onClick={() => setIsRefundOpen(false)} className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none">Understood</button>
+              <button 
+                onMouseEnter={() => isPremium && speak('Thank you for using GDX Zishan Website', 'sweet')}
+                onClick={() => setIsRefundOpen(false)} 
+                className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
+              >
+                {isPremium && (
+                  <span className="absolute -top-2 -right-2 bg-yellow-400 text-[8px] text-black px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter shadow-sm border border-black/10 opacity-0 group-hover:opacity-100 transition-opacity">Voice Active</span>
+                )}
+                Understood
+              </button>
             </div>
           </div>
         </div>
@@ -1509,8 +1563,15 @@ export default function App() {
       {isSupportOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:hidden overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 relative my-8 animate-in fade-in zoom-in duration-200">
-            <button onClick={() => setIsSupportOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none">
+            <button 
+              onMouseEnter={() => isPremium && speak('Thank you for using GDX Zishan Website', 'sweet')}
+              onClick={() => setIsSupportOpen(false)} 
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none group"
+            >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              {isPremium && (
+                <span className="absolute -bottom-4 right-0 bg-yellow-400 text-[6px] text-black px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter shadow-sm border border-black/10 opacity-0 group-hover:opacity-100 transition-opacity">Voice Active</span>
+              )}
             </button>
             <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Support & Contact</h2>
             <p className="text-gray-500 text-sm mb-6">Need help with the app? We are here for you.</p>

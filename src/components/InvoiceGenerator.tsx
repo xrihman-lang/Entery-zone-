@@ -7,6 +7,7 @@ import { Logo } from './Logo';
 import { useProductPrices } from '../hooks/useProductPrices';
 import { useLocalDate, getLocalDateString } from '../hooks/useLocalDate';
 import { useSalesmen } from '../context/SalesmanContext';
+import { speak } from '../lib/speech';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -86,6 +87,12 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     const id = crypto.randomUUID();
     setToasts(prev => [...prev, { id, message, type }]);
+
+    // Voice Feedback for Success
+    if (type === 'success' && (message.toLowerCase().includes('saved') || message.toLowerCase().includes('added') || message.toLowerCase().includes('successful'))) {
+      speak('Entry Successful', 'professional');
+    }
+
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
@@ -364,7 +371,12 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
               }`}
             >
               {toast.type === 'success' ? <ClipboardList size={18} /> : <Trash2 size={18} />}
-              {toast.message}
+              <div className="flex flex-col">
+                <span>{toast.message}</span>
+                {(toast.message.toLowerCase().includes('saved') || toast.message.toLowerCase().includes('added') || toast.message.toLowerCase().includes('successful')) && (
+                  <span className="text-[8px] opacity-70 uppercase tracking-widest font-black">AI Voice Active</span>
+                )}
+              </div>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -489,6 +501,7 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
                       setBulkImportText('');
                       setIsBulkImportOpen(false);
                     }}
+                    onMouseEnter={() => speak('Thank you for using GDX Zishan Website', 'sweet')}
                     className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors"
                  >
                     Discard
