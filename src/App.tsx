@@ -96,6 +96,9 @@ export default function App() {
   const [localMode, setLocalMode] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [totalEntryCount, setTotalEntryCount] = useState(0);
+  const [dailyEntryCount, setDailyEntryCount] = useState(0);
+  const [totalInvoiceCount, setTotalInvoiceCount] = useState(0);
+  const [dailyInvoiceCount, setDailyInvoiceCount] = useState(0);
   const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice' | 'history' | 'stock' | 'admin'>('standard');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -122,7 +125,7 @@ export default function App() {
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
-  const { isPremium, expiryDate, loading: premiumLoading } = usePremiumStatus(user);
+  const { isPremium, expiryDate, planName, loading: premiumLoading } = usePremiumStatus(user);
   const [bulkInput, setBulkInput] = useState('');
 
   // --- No Auto-popup for Subscription (Replaced with persistent banner) ---
@@ -324,22 +327,39 @@ export default function App() {
       let q = query(collection(db, 'entries'), where('userId', '==', user.uid));
       
         try {
-          const snapshot = await getDocs(q);
-          const allDocs = snapshot.docs.map(doc => ({
+          // Fetch Entries
+          const entrySnapshot = await getDocs(q);
+          const allEntryDocs = entrySnapshot.docs.map(doc => ({
             ...doc.data(),
             id: doc.id,
           })) as Entry[];
 
-          setTotalEntryCount(allDocs.length);
+          setTotalEntryCount(allEntryDocs.length);
+
+          // Fetch Invoices
+          const invoiceQuery = query(collection(db, 'invoices'), where('userId', '==', user.uid));
+          const invoiceSnapshot = await getDocs(invoiceQuery);
+          const allInvoiceDocs = invoiceSnapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+          })) as any[];
+          setTotalInvoiceCount(allInvoiceDocs.length);
+
+          // Compute daily counts
+          const todayDateStr = getLocalDateString();
+          const todayEntryCount = allEntryDocs.filter(doc => doc.date === todayDateStr).length;
+          const todayInvoiceCount = allInvoiceDocs.filter(doc => (doc.invoiceDate || doc.date) === todayDateStr).length;
+
+          setDailyEntryCount(todayEntryCount);
+          setDailyInvoiceCount(todayInvoiceCount);
 
           // Perform date filtering locally since composite indexes aren't created by default
-          let docs = [...allDocs];
+          let docs = [...allEntryDocs];
           if (from) docs = docs.filter(doc => doc.date >= from!);
           if (to) docs = docs.filter(doc => doc.date <= to!);
 
-        docs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        
-        setEntries(docs);
+          docs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          setEntries(docs);
       } catch (err) {
         handleFirestoreError(err, OperationType.LIST, 'entries');
       }
@@ -364,13 +384,30 @@ export default function App() {
     if (!formData.customerName || !formData.totalAmount) return;
 
     if (!editingId) {
-      // Free User Entry Limit (20)
-      if (!isPremium && totalEntryCount >= 20) {
+      // Free User Entry Limit (20 total across entries and invoices)
+      if (!isPremium && (totalEntryCount + totalInvoiceCount) >= 20) {
         speak('Aapki free entry limit khatam ho gayi hai. Kripya premium subscription lein.', 'professional');
         setIsSubscriptionModalOpen(true);
-        showToast('Free limit reached (Max 20 entries)', 'error');
+        showToast('Free limit reached (Max 20 total entries)', 'error');
         return;
       }
+      
+      // Lite Plan Daily Limit (100 total across entries and invoices)
+      if (isPremium && planName === 'Lite' && (dailyEntryCount + dailyInvoiceCount) >= 100) {
+        speak('Aapki aaj ki 100 entry ki limit khatam ho gayi hai. Kal dobara koshish karein ya business plan lein.', 'professional');
+        setIsSubscriptionModalOpen(true);
+        showToast('Daily limit reached (Max 100 total entries today)', 'error');
+        return;
+      }
+
+      // Plus Plan Daily Limit (200 total across entries and invoices)
+      if (isPremium && planName === 'Plus' && (dailyEntryCount + dailyInvoiceCount) >= 200) {
+        speak('Aapki aaj ki 200 entry ki limit khatam ho gayi hai. Kal dobara koshish karein ya business plan lein.', 'professional');
+        setIsSubscriptionModalOpen(true);
+        showToast('Daily limit reached (Max 200 total entries today)', 'error');
+        return;
+      }
+      
       speak('Nayi entry joad di gayi hai', 'professional');
     } else {
       speak('Entry surakshit kar li gayi hai', 'professional');
@@ -787,20 +824,43 @@ export default function App() {
         </div>
 
         {/* Persistent Premium Banner */}
-        {!isPremium && !premiumLoading && user && (
+        {user && !isPremium && !premiumLoading && (
           <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-2 px-4 flex flex-wrap items-center justify-between gap-3 text-sm font-bold print:hidden">
             <div className="flex items-center gap-2">
-              <Crown size={16} className="text-amber-200" />
+              <Crown size={16} className="text-amber-200 animate-pulse" />
               <span>
-                Free Plan: {totalEntryCount}/20 Entries Used. Upgrade for Unlimited access and Cloud backup!
+                ✨ Unlock the Full Power of GDX! Upgrade to Premium for Unlimited Billing & Secure Cloud Backup.
               </span>
             </div>
-            <button 
-              onClick={() => setIsSubscriptionModalOpen(true)}
-              className="bg-white text-orange-600 px-3 py-1 rounded-full text-xs font-black uppercase hover:bg-orange-50 transition-colors shadow-sm"
-            >
-              Get Premium Now
-            </button>
+            <div className="flex items-center gap-4">
+              <span className="text-[10px] opacity-80 uppercase tracking-tighter">Usage: {(totalEntryCount + totalInvoiceCount)}/20</span>
+              <button 
+                onClick={() => setIsSubscriptionModalOpen(true)}
+                className="bg-white text-orange-600 px-4 py-1 rounded-full text-xs font-black uppercase hover:scale-105 transition-all shadow-sm active:scale-95"
+              >
+                Upgrade Now
+              </button>
+            </div>
+          </div>
+        )}
+
+        {user && isPremium && (planName === 'Lite' || planName === 'Plus') && !premiumLoading && (
+          <div className={`bg-gradient-to-r ${planName === 'Lite' ? 'from-blue-600 to-indigo-600' : 'from-purple-600 to-violet-600'} text-white p-2 px-4 flex flex-wrap items-center justify-between gap-3 text-sm font-bold print:hidden`}>
+            <div className="flex items-center gap-2">
+              <Crown size={16} className="text-blue-200" />
+              <span>
+                ⚡ GDX {planName} Active: {(dailyEntryCount + dailyInvoiceCount)}/{planName === 'Lite' ? '100' : '200'} Daily Units Consumed.
+              </span>
+            </div>
+            <div className="flex items-center gap-4 text-[10px] opacity-80 uppercase font-black">
+              <span>Limit Resets at Dawn</span>
+              <button 
+                onClick={() => setIsSubscriptionModalOpen(true)}
+                className="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-full transition-colors border border-white/20"
+              >
+                Upgrade
+              </button>
+            </div>
           </div>
         )}
 
@@ -959,7 +1019,15 @@ export default function App() {
         {activeTab === 'admin' ? (
           <AdminDashboard />
         ) : activeTab === 'invoice' ? (
-          <InvoiceGenerator user={user} onSaved={() => setActiveTab('standard')} isPremium={isPremium} onRequirePremium={() => setIsSubscriptionModalOpen(true)} />
+          <InvoiceGenerator 
+            user={user} 
+            onSaved={() => setActiveTab('standard')} 
+            isPremium={isPremium} 
+            planName={planName} 
+            onRequirePremium={() => setIsSubscriptionModalOpen(true)}
+            totalEntryCount={totalEntryCount}
+            dailyEntryCount={dailyEntryCount}
+          />
         ) : activeTab === 'history' ? (
           <InvoiceHistory user={user} />
         ) : activeTab === 'stock' ? (
@@ -1426,7 +1494,7 @@ export default function App() {
             </div>
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
               <button 
-                onMouseEnter={() => isPremium && speak('Thank you for using GDX Website', 'sweet')}
+                onMouseEnter={() => isPremium && speak('GDX Website istemal karne ke liye shukriya', 'sweet')}
                 onClick={() => setIsAboutOpen(false)} 
                 className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
               >
@@ -1484,7 +1552,7 @@ export default function App() {
             
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
               <button 
-                onMouseEnter={() => isPremium && speak('Thank you for using GDX Website', 'sweet')}
+                onMouseEnter={() => isPremium && speak('GDX Website istemal karne ke liye shukriya', 'sweet')}
                 onClick={() => setIsPrivacyOpen(false)} 
                 className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
               >
@@ -1528,7 +1596,7 @@ export default function App() {
             
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
               <button 
-                onMouseEnter={() => isPremium && speak('Thank you for using GDX Website', 'sweet')}
+                onMouseEnter={() => isPremium && speak('GDX Website istemal karne ke liye shukriya', 'sweet')}
                 onClick={() => setIsTermsOpen(false)} 
                 className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
               >
@@ -1570,7 +1638,7 @@ export default function App() {
             
             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
               <button 
-                onMouseEnter={() => isPremium && speak('Thank you for using GDX Website', 'sweet')}
+                onMouseEnter={() => isPremium && speak('GDX Website istemal karne ke liye shukriya', 'sweet')}
                 onClick={() => setIsRefundOpen(false)} 
                 className="px-6 py-2 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 transition-colors focus:outline-none relative group"
               >
@@ -1589,7 +1657,7 @@ export default function App() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:hidden overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 relative my-8 animate-in fade-in zoom-in duration-200">
             <button 
-              onMouseEnter={() => isPremium && speak('Thank you for using GDX Website', 'sweet')}
+              onMouseEnter={() => isPremium && speak('GDX Website istemal karne ke liye shukriya', 'sweet')}
               onClick={() => setIsSupportOpen(false)} 
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none group"
             >

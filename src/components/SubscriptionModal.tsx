@@ -19,7 +19,7 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
   useEffect(() => {
     if (isOpen) {
       // Voice greeting when entering premium page
-      speak('Welcome to GDX Premium', 'professional');
+      speak('GDX Premium mein aapka swagat hai', 'professional');
     }
   }, [isOpen]);
 
@@ -53,11 +53,12 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
 
                   await setDoc(doc(db, 'users', user.uid), {
                       isPremium: true,
+                      planName: planName,
                       expiryDate: expiryDate.toISOString(),
                       updatedAt: new Date().toISOString()
                   }, { merge: true });
 
-                  alert("Payment Successful! You are now a Premium user.");
+                  alert(`Payment Successful! You are now subscribed to ${planName} plan.`);
                   onClose();
               } catch (error) {
                   console.error("Error updating user status:", error);
@@ -245,6 +246,42 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
               </button>
               <p className="text-white/40 text-[10px] uppercase tracking-widest mt-4 font-bold">↑ Click anywhere above to start ↑</p>
             </div>
+
+            <div className="card-3d w-full max-w-sm" style={{ animationDelay: '0.1s' }}>
+                  <div className="text-left w-full mb-6 text-xs space-y-2 opacity-80 border-b border-white/10 pb-4">
+                    <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> 100 Entries Per Day Limit</p>
+                    <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Limit Resets Every Morning</p>
+                    <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Cloud Sync Included</p>
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Daily Lite</h3>
+                  <h1 className="gold-glow text-5xl">₹200<span className="text-xl text-gray-400 font-normal">/mo</span></h1>
+                  <p className="text-gray-300 mt-2 italic text-sm mb-4">"Perfect for small shops"</p>
+                  <button 
+                      className="pricing-btn btn-active" 
+                      disabled={isProcessing}
+                      onClick={() => handlePayment('Lite', 200, 1)}
+                  >
+                      {isProcessing ? "Processing..." : "Buy Now"}
+                  </button>
+                </div>
+
+            <div className="card-3d w-full max-w-sm" style={{ animationDelay: '0.15s' }}>
+                  <div className="text-left w-full mb-6 text-xs space-y-2 opacity-80 border-b border-white/10 pb-4">
+                    <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> 200 Entries Per Day Limit</p>
+                    <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> High Performance Cloud</p>
+                    <p className="flex items-center gap-2"><Crown size={12} className="text-yellow-500" /> Priority Support</p>
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Daily Plus</h3>
+                  <h1 className="gold-glow text-5xl">₹500<span className="text-xl text-gray-400 font-normal">/mo</span></h1>
+                  <p className="text-gray-300 mt-2 italic text-sm mb-4">"Best for growing business"</p>
+                  <button 
+                      className="pricing-btn btn-active" 
+                      disabled={isProcessing}
+                      onClick={() => handlePayment('Plus', 500, 1)}
+                  >
+                      {isProcessing ? "Processing..." : "Buy Now"}
+                  </button>
+                </div>
 
             <div className="card-3d w-full max-w-sm" style={{ animationDelay: '0.2s' }}>
                   <div className="text-left w-full mb-6 text-xs space-y-2 opacity-80 border-b border-white/10 pb-4">

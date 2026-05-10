@@ -29,9 +29,26 @@ interface InvoiceItem {
 }
 
 
-export default function InvoiceGenerator({ user, onSaved, isPremium, onRequirePremium }: { user: any, onSaved: () => void, isPremium: boolean, onRequirePremium: () => void }) {
+export default function InvoiceGenerator({ 
+  user, 
+  onSaved, 
+  isPremium, 
+  planName, 
+  onRequirePremium,
+  totalEntryCount,
+  dailyEntryCount
+}: { 
+  user: any, 
+  onSaved: () => void, 
+  isPremium: boolean, 
+  planName: string | null, 
+  onRequirePremium: () => void,
+  totalEntryCount: number,
+  dailyEntryCount: number
+}) {
   const [billNo, setBillNo] = useState('');
   const [invoiceCount, setInvoiceCount] = useState(0);
+  const [dailyInvoiceCount, setDailyInvoiceCount] = useState(0);
   const [brandName, setBrandName] = useState('GDX');
   const [brandAddress, setBrandAddress] = useState('Main Bazaar, New Delhi - 110001');
   const [industry, setIndustry] = useState<IndustryType>('General Grocery');
@@ -85,13 +102,17 @@ export default function InvoiceGenerator({ user, onSaved, isPremium, onRequirePr
     setBillNo(`INV-${Math.floor(1000 + Math.random() * 9000)}`);
     
     // Fetch total invoice count for limit check
-    if (!isPremium && user) {
+    if (user) {
       const fetchCount = async () => {
         const { db } = await getFirebase();
         if (!db) return;
         const q = query(collection(db, 'invoices'), where('userId', '==', user.uid));
         const snap = await getDocs(q);
         setInvoiceCount(snap.size);
+
+        const todayDateStr = getLocalDateString();
+        const dailySnap = snap.docs.filter(doc => (doc.data().invoiceDate || doc.data().date) === todayDateStr);
+        setDailyInvoiceCount(dailySnap.length);
       };
       fetchCount();
     }
@@ -276,8 +297,20 @@ export default function InvoiceGenerator({ user, onSaved, isPremium, onRequirePr
       return;
     }
 
-    if (!isPremium && invoiceCount >= 20) {
+    if (!isPremium && (totalEntryCount + invoiceCount) >= 20) {
       speak('Aapki free entry limit khatam ho gayi hai. Kripya premium subscription lein.', 'professional');
+      onRequirePremium();
+      return;
+    }
+
+    if (isPremium && planName === 'Lite' && (dailyEntryCount + dailyInvoiceCount) >= 100) {
+      speak('Aapki aaj ki 100 entry ki limit khatam ho gayi hai. Kal dobara koshish karein ya business plan lein.', 'professional');
+      onRequirePremium();
+      return;
+    }
+
+    if (isPremium && planName === 'Plus' && (dailyEntryCount + dailyInvoiceCount) >= 200) {
+      speak('Aapki aaj ki 200 entry ki limit khatam ho gayi hai. Kal dobara koshish karein ya business plan lein.', 'professional');
       onRequirePremium();
       return;
     }
