@@ -26,6 +26,7 @@ interface InvoiceItem {
   color?: string;
   hsnCode?: string;
   itemDiscountPercent?: number;
+  unit?: string;
 }
 
 
@@ -142,7 +143,7 @@ export default function InvoiceGenerator({
 
   const handleAddItem = () => {
     speak('Nayi entry joad di gayi hai', 'professional');
-    const newItem = { id: Date.now().toString(), name: '', quantity: 1, rate: 0, gstPercent: gstEnabled ? 18 : 0 };
+    const newItem = { id: Date.now().toString(), name: '', quantity: 1, rate: 0, gstPercent: gstEnabled ? 18 : 0, unit: 'PCS' };
     setItems([...items, newItem]);
   };
 
@@ -157,7 +158,8 @@ export default function InvoiceGenerator({
       name: quickAdd.name,
       quantity: quickAdd.quantity === '' ? 1 : Number(quickAdd.quantity),
       rate: rate,
-      gstPercent: gstEnabled ? 18 : 0
+      gstPercent: gstEnabled ? 18 : 0,
+      unit: 'PCS'
     };
 
     setItems(prev => [...prev, newItem]);
@@ -453,45 +455,48 @@ export default function InvoiceGenerator({
       <style>
       {`
         @media print {
-          @page { size: A4 landscape; margin: 10mm; }
+          @page { size: A4 portrait; margin: 0; }
           html, body { height: auto !important; overflow: visible !important; min-height: 100% !important; margin: 0 !important; padding: 0 !important; color: black !important; background: white !important; }
           .print\\:flex { display: flex !important; }
-          .print-fixed-header { position: static; top: auto; left: auto; right: auto; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 4px; margin-bottom: 4px; }
-          .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 35px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; font-size: 10px; padding: 0 10mm; }
-          .print-content-spacer { padding-top: 0px; padding-bottom: 35px; height: auto !important; display: block !important; overflow: visible !important; }
-          table { page-break-inside: auto; width: 100%; border-collapse: collapse; table-layout: fixed; border: 1px solid #d1d5db; }
+          .print-fixed-header { position: static; top: auto; left: auto; right: auto; height: auto; background: white; z-index: 10; border-bottom: 1px solid #000; padding: 2mm 10mm 1mm 10mm; margin: 0; }
+          .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: auto; background: white; z-index: 10; border-top: 1px solid #000; display: flex; flex-direction: column; font-size: 10px; padding: 2mm 10mm; }
+          .print-content-spacer { padding: 0 10mm 40mm 10mm; }
+          table { page-break-inside: auto; width: 100%; border-collapse: collapse; table-layout: fixed; border: 1px solid #000; }
           tr { page-break-inside: avoid; page-break-after: auto; }
-          thead { display: table-header-group; background-color: #f3f4f6; }
+          thead { display: table-header-group; background-color: #fff; }
           tfoot { display: table-footer-group; }
-          th { border: 1px solid #d1d5db; border-bottom: 2px solid #374151; padding: 8px; font-weight: 900; }
-          td { border: 1px solid #d1d5db; padding: 8px; }
+          th { border: 1px solid #000; padding: 2px 4px; font-weight: 900; font-size: 10px; text-align: center; }
+          td { border: 1px solid #000; padding: 2px 4px; font-size: 10px; }
           .print-avoid-break { page-break-inside: avoid !important; }
           .watermark-container { position: relative; z-index: 1; }
           .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 12rem; font-weight: 900; color: rgba(0,0,0,0.03); z-index: -1; pointer-events: none; text-shadow: 2px 2px 5px rgba(0,0,0,0.01); white-space: nowrap; }
           input, select, textarea { border: none !important; padding: 0 !important; background: transparent !important; appearance: none !important; -webkit-appearance: none; color: black !important; }
-          .print-summary-label { font-weight: 800 !important; color: black !important; text-transform: uppercase; font-size: 14px; }
-          .print-grand-total { font-size: 1.5rem !important; font-weight: 900 !important; color: black !important; border-top: 2px solid black !important; margin-top: 4px; padding-top: 4px; }
+          .print-summary-label { font-weight: 800 !important; color: black !important; text-transform: uppercase; font-size: 11px; }
+          .print-grand-total { font-size: 1.1rem !important; font-weight: 900 !important; color: black !important; border-top: 1px solid black !important; margin-top: 2px; padding-top: 2px; }
           .print\\:hidden { display: none !important; }
         }
       `}
       </style>
 
       {/* Brand Header for Print */}
-      <div className="hidden print:flex print-fixed-header flex-col border-b-2 border-gray-900 pb-1 mb-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-         <div className="w-full text-center py-1">
-            <h2 className="text-sm font-black text-gray-900 tracking-[0.3em] uppercase">SALES INVOICE</h2>
+      <div className="hidden print:flex print-fixed-header flex-col border-b border-black" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+         <div className="w-full text-center mb-1">
+            <h2 className="text-xs font-black text-gray-900 tracking-[0.4em] uppercase border border-black inline-block px-4 py-0.5">SALES INVOICE</h2>
          </div>
-         <div className="w-full flex justify-between items-start mt-1">
+         <div className="w-full flex justify-between items-start">
             <div className="w-1/2">
-               <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase leading-none">{brandName}</h1>
-               <p className="text-[10px] text-gray-600 font-bold mt-0.5 uppercase">{brandAddress}</p>
-               {gstin && showGST && <p className="text-[10px] text-gray-500 font-bold">GSTIN: {gstin}</p>}
+               <h1 className="text-3xl font-black text-gray-900 tracking-tighter uppercase leading-none">{brandName}</h1>
+               <p className="text-[9px] text-gray-800 font-bold mt-0.5 uppercase leading-tight max-w-[250px]">{brandAddress}</p>
+               {gstin && showGST && <p className="text-[9px] text-gray-800 font-bold">GSTIN/UIN: {gstin}</p>}
             </div>
             <div className="w-1/2 text-right">
-               <h2 className="text-lg font-black text-blue-600 tracking-tight leading-none">TWINKLE ENTERPRISES</h2>
-               <div className="mt-1 text-[10px] text-gray-700 space-y-0.5">
-                 <p className="font-black">BILL NO: {billNo}</p>
-                 <p className="font-bold uppercase">DATE: {invoiceDate || localDate}</p>
+               <h2 className="text-xl font-black text-blue-700 tracking-tight leading-none">TWINKLE ENTERPRISES</h2>
+               <div className="mt-1 text-[9px] text-gray-900 space-y-0">
+                 <p className="font-bold">State Name: <span className="font-black">Delhi, Code: 07</span></p>
+                 <div className="flex justify-end gap-4 mt-1 border-t border-black pt-1">
+                    <p className="font-black">Inv No: {billNo}</p>
+                    <p className="font-black uppercase">Dated: {invoiceDate || localDate}</p>
+                 </div>
                </div>
             </div>
          </div>
@@ -755,15 +760,17 @@ export default function InvoiceGenerator({
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -rotate-[30deg] text-[6rem] sm:text-[12rem] font-black text-black opacity-[0.03] pointer-events-none z-0 whitespace-nowrap select-none">
                 GDX
             </div>
-            <table className="w-full text-left border-collapse relative z-10 print:border print:border-gray-300">
+            <table className="w-full text-left border-collapse relative z-10 print:border print:border-black">
               <thead>
-                <tr className="bg-[#EEEEEE] text-black print:bg-gray-200 print:text-black">
-                  <th className="p-1 print:p-2 border print:border-gray-300 text-[10px] font-black w-8 text-center uppercase">#</th>
-                  <th className="p-1 print:p-2 border print:border-gray-300 text-[10px] font-black uppercase">ITEM PARTICULARS</th>
-                  <th className="p-1 print:p-2 border print:border-gray-300 text-[10px] font-black w-20 text-center uppercase">QTY</th>
-                  <th className="p-1 print:p-2 border print:border-gray-300 text-[10px] font-black w-28 text-right uppercase">PRICE</th>
-                  <th className="p-1 print:p-2 border print:border-gray-300 text-[10px] font-black w-28 text-right uppercase">TOTAL</th>
-                  <th className="p-1 border print:border-gray-300 text-[10px] font-black w-8 print:hidden"></th>
+                <tr className="bg-[#EEEEEE] text-black print:bg-transparent print:text-black">
+                  <th className="p-1 print:p-1 border border-black text-[10px] font-black w-8 text-center uppercase">SI No.</th>
+                  <th className="p-1 print:p-1 border border-black text-[10px] font-black uppercase text-left">Description of Goods</th>
+                  <th className="p-1 print:p-1 border border-black text-[10px] font-black w-20 text-center uppercase">Quantity</th>
+                  <th className="p-1 print:p-1 border border-black text-[10px] font-black w-20 text-right uppercase">Rate</th>
+                  <th className="p-1 print:p-1 border border-black text-[10px] font-black w-12 text-center uppercase">per</th>
+                  <th className="p-1 print:p-1 border border-black text-[10px] font-black w-14 text-center uppercase">Disc. %</th>
+                  <th className="p-1 print:p-1 border border-black text-[10px] font-black w-24 text-right uppercase">Amount</th>
+                  <th className="p-1 border border-black text-[10px] font-black w-8 print:hidden"></th>
                 </tr>
               </thead>
               <tbody className="print:text-[11px]">
@@ -825,21 +832,27 @@ export default function InvoiceGenerator({
                 </tr>
 
                 {items.map((item, idx) => (
-                  <tr key={item.id} className="border-bottom print:border-gray-300">
-                    <td className="p-1 print:p-1.5 print:border text-center font-mono text-[11px] text-gray-500">{idx + 1}</td>
-                    <td className="p-1 print:p-1.5 print:border">
-                      <input type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full outline-none bg-transparent print:font-bold text-xs py-0.5" placeholder="Item Name" />
+                  <tr key={item.id} className="border-bottom print:border-black">
+                    <td className="p-1 print:p-0.5 print:border border-black text-center font-mono text-[11px] text-gray-500">{idx + 1}</td>
+                    <td className="p-1 print:p-0.5 print:border border-black">
+                      <input type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full outline-none bg-transparent print:font-bold text-[11px] py-0.5" placeholder="Item Name" />
                     </td>
-                    <td className="p-1 print:p-1.5 print:border">
+                    <td className="p-1 print:p-0.5 print:border border-black">
                       <input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', Number(e.target.value))} className="w-full outline-none bg-transparent text-center font-mono text-[11px] py-0.5" />
                     </td>
-                    <td className="p-1 print:p-1.5 print:border text-right font-mono text-[11px]">
+                    <td className="p-1 print:p-0.5 print:border border-black text-right font-mono text-[11px]">
                       <input type="number" min="0" value={item.rate || ''} onChange={e => handleItemChange(item.id, 'rate', Number(e.target.value))} className="w-full outline-none bg-transparent text-right py-0.5" placeholder="0.00" />
                     </td>
-                    <td className="p-1 print:p-1.5 print:border text-right font-mono tracking-tight text-gray-800 text-[11px] font-bold">
-                      {(item.quantity * item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    <td className="p-1 print:p-0.5 print:border border-black text-center">
+                      <input type="text" value={item.unit || 'PCS'} onChange={e => handleItemChange(item.id, 'unit', e.target.value)} className="w-full outline-none bg-transparent text-center text-[10px] py-0.5 uppercase" placeholder="PCS" />
                     </td>
-                    <td className="p-1 text-center print:hidden">
+                    <td className="p-1 print:p-0.5 print:border border-black text-center">
+                      <input type="number" value={item.itemDiscountPercent || ''} onChange={e => handleItemChange(item.id, 'itemDiscountPercent', e.target.value === '' ? '' : Number(e.target.value))} className="w-full outline-none bg-transparent text-center text-[11px] py-0.5" placeholder="0" />
+                    </td>
+                    <td className="p-1 print:p-0.5 print:border border-black text-right font-mono tracking-tight text-gray-800 text-[11px] font-bold">
+                      {((item.quantity * item.rate) * (1 - (item.itemDiscountPercent || 0) / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-1 text-center print:hidden border-black">
                       <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:text-red-700 p-1">
                         <Trash2 size={14} />
                       </button>
@@ -847,7 +860,36 @@ export default function InvoiceGenerator({
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="hidden print:table-footer-group">
+                <tr className="border border-black">
+                   <td colSpan={2} className="p-1 text-right font-black uppercase text-[10px] border border-black">Total</td>
+                   <td className="p-1 text-center font-black text-[11px] border border-black">{totalBoxes} PCS</td>
+                   <td className="p-1 border border-black"></td>
+                   <td className="p-1 border border-black"></td>
+                   <td className="p-1 border border-black"></td>
+                   <td className="p-1 text-right font-black text-[11px] border border-black">₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                </tr>
+              </tfoot>
             </table>
+          </div>
+
+          <div className="hidden print:block mt-2">
+             <div className="flex justify-between items-start border border-black p-2 bg-white">
+                <div className="w-full">
+                   <p className="text-[9px] font-bold uppercase mb-1">Amount Chargeable (in words)</p>
+                   <p className="text-[11px] font-black italic">Indian Rupees {numberToWords(Math.round(grandTotal))} Only</p>
+                </div>
+             </div>
+             
+             <div className="flex justify-between items-end mt-12 mb-4 px-2">
+                <div className="text-[9px] font-bold text-center">
+                   <p className="border-t border-black pt-1 px-4">Customer's Seal and Signature</p>
+                </div>
+                <div className="text-right text-[9px] font-bold">
+                   <p className="mb-10 uppercase font-black px-4">for {brandName || 'GDX'}</p>
+                   <p className="border-t border-black pt-1 px-4">Authorised Signatory</p>
+                </div>
+             </div>
           </div>
           
           <div className="mt-4 print:hidden">
@@ -857,7 +899,7 @@ export default function InvoiceGenerator({
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between gap-8 py-4 print:py-0 print:items-end print:text-right print-avoid-break mt-6">
+        <div className="flex flex-col md:flex-row justify-between gap-8 py-4 print:hidden print:py-0 print:items-end print:text-right print-avoid-break mt-6">
            
            <div className="hidden print:block w-1/2 text-left">
              <div className="border border-gray-300 p-4 rounded-lg bg-gray-50">
