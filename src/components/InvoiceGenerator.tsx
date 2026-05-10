@@ -65,6 +65,11 @@ export default function InvoiceGenerator({
   const [jobNo, setJobNo] = useState('');
   const [technician, setTechnician] = useState('');
   
+  // Print Settings
+  const [showPhone, setShowPhone] = useState(true);
+  const [showAddress, setShowAddress] = useState(true);
+  const [showGST, setShowGST] = useState(true);
+
   const { salesmen } = useSalesmen();
   // We no longer use selectedSalesmanId as per user request to remove "Order by" section
 
@@ -128,6 +133,11 @@ export default function InvoiceGenerator({
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
+  };
+
+  const handleToggleSetting = (setter: React.Dispatch<React.SetStateAction<boolean>>, value: boolean) => {
+    setter(!value);
+    speak('Setting badal di gayi hai', 'professional');
   };
 
   const handleAddItem = () => {
@@ -446,7 +456,7 @@ export default function InvoiceGenerator({
           @page { size: A4 landscape; margin: 10mm; }
           html, body { height: auto !important; overflow: visible !important; min-height: 100% !important; margin: 0 !important; padding: 0 !important; color: black !important; background: white !important; }
           .print\\:flex { display: flex !important; }
-          .print-fixed-header { position: static; top: auto; left: auto; right: auto; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 8px; margin-bottom: 15px; }
+          .print-fixed-header { position: static; top: auto; left: auto; right: auto; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 4px; margin-bottom: 4px; }
           .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 35px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; font-size: 10px; padding: 0 10mm; }
           .print-content-spacer { padding-top: 0px; padding-bottom: 35px; height: auto !important; display: block !important; overflow: visible !important; }
           table { page-break-inside: auto; width: 100%; border-collapse: collapse; table-layout: fixed; border: 1px solid #d1d5db; }
@@ -467,23 +477,23 @@ export default function InvoiceGenerator({
       </style>
 
       {/* Brand Header for Print */}
-      <div className="hidden print:flex print-fixed-header flex-col items-center" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-         <div className="w-full relative flex flex-col items-center">
-            <div className="absolute top-0 left-0 bg-gray-900 text-white px-2 py-0.5 text-[8px] font-black uppercase tracking-widest leading-none">
-              Standard Wide Invoice
-            </div>
-            <h1 className="text-5xl font-black text-gray-900 tracking-tighter uppercase leading-none">{brandName}</h1>
-            <p className="text-xs text-gray-600 font-bold mt-1 uppercase text-center">{brandAddress}</p>
-            {gstin && <p className="text-xs text-gray-500 font-bold mt-0.5">GSTIN: {gstin}</p>}
+      <div className="hidden print:flex print-fixed-header flex-col border-b-2 border-gray-900 pb-1 mb-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+         <div className="w-full text-center py-1">
+            <h2 className="text-sm font-black text-gray-900 tracking-[0.3em] uppercase">SALES INVOICE</h2>
          </div>
-         <div className="w-full flex justify-end mt-2">
-            <div className="bg-gray-900 text-white px-3 py-1 inline-block mb-1">
-              <p className="text-sm font-black tracking-widest uppercase">Tax Invoice</p>
+         <div className="w-full flex justify-between items-start mt-1">
+            <div className="w-1/2">
+               <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase leading-none">{brandName}</h1>
+               <p className="text-[10px] text-gray-600 font-bold mt-0.5 uppercase">{brandAddress}</p>
+               {gstin && showGST && <p className="text-[10px] text-gray-500 font-bold">GSTIN: {gstin}</p>}
             </div>
-         </div>
-         <div className="w-full flex justify-between border-t border-b border-gray-200 py-1 mt-1 mb-2">
-            <p className="text-xs font-mono text-gray-800">Bill No: <span className="font-bold">{billNo}</span></p>
-            <p className="text-xs font-mono text-gray-800">Date: <span className="font-bold">{invoiceDate}</span></p>
+            <div className="w-1/2 text-right">
+               <h2 className="text-lg font-black text-blue-600 tracking-tight leading-none">TWINKLE ENTERPRISES</h2>
+               <div className="mt-1 text-[10px] text-gray-700 space-y-0.5">
+                 <p className="font-black">BILL NO: {billNo}</p>
+                 <p className="font-bold uppercase">DATE: {invoiceDate || localDate}</p>
+               </div>
+            </div>
          </div>
       </div>
       
@@ -582,6 +592,52 @@ export default function InvoiceGenerator({
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 print:hidden">
+           <div className="md:col-span-4 bg-gray-50 p-4 rounded-xl border border-gray-200 mb-2">
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <Printer size={12} /> Print Display Settings
+              </h3>
+              <div className="flex flex-wrap gap-6">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div className="relative inline-flex items-center">
+                    <input 
+                      type="checkbox" 
+                      checked={showPhone} 
+                      onChange={() => handleToggleSetting(setShowPhone, showPhone)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </div>
+                  <span className="text-sm font-bold text-gray-600 group-hover:text-blue-600 transition-colors">Show Phone</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div className="relative inline-flex items-center">
+                    <input 
+                      type="checkbox" 
+                      checked={showAddress} 
+                      onChange={() => handleToggleSetting(setShowAddress, showAddress)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </div>
+                  <span className="text-sm font-bold text-gray-600 group-hover:text-blue-600 transition-colors">Show Address</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div className="relative inline-flex items-center">
+                    <input 
+                      type="checkbox" 
+                      checked={showGST} 
+                      onChange={() => handleToggleSetting(setShowGST, showGST)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </div>
+                  <span className="text-sm font-bold text-gray-600 group-hover:text-blue-600 transition-colors">Show GST Details</span>
+                </label>
+              </div>
+           </div>
+
            <div className="md:col-span-2">
              <label className="block text-sm font-bold text-gray-700 mb-1">Company / Shop Name</label>
              <input type="text" value={brandName} onChange={e => setBrandName(e.target.value)} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold" placeholder="GDX" />
@@ -626,7 +682,7 @@ export default function InvoiceGenerator({
            )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 print:mb-0 print:border-t-2 print:border-gray-900 pt-1">
            <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 print:bg-white print:border-none print:p-0">
              <h3 className="font-bold text-gray-800 border-b pb-2 mb-4 print:border-gray-800 print:mb-2">Billed To:</h3>
              <div className="space-y-3">
@@ -647,11 +703,11 @@ export default function InvoiceGenerator({
                  <label className="block text-sm font-bold text-gray-700 mb-1 print:hidden">Customer Name</label>
                  <input type="text" list="customerNamesListInvoice" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none print:border-none print:p-0 print:font-bold print:text-lg" placeholder="Customer Name" />
                </div>
-               <div>
+               <div className={!showPhone ? 'print:hidden' : ''}>
                  <label className="block text-sm font-bold text-gray-700 mb-1 print:hidden">Phone</label>
                  <input type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value.replace(/\D/g, ''))} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none print:border-none print:p-0" placeholder="Phone Number" />
                </div>
-               <div>
+               <div className={!showAddress ? 'print:hidden' : ''}>
                  <label className="block text-sm font-bold text-gray-700 mb-1 print:hidden">Address</label>
                  <textarea value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none print:border-none print:p-0 resize-none print:min-h-0" rows={2} placeholder="Full Address"></textarea>
                </div>
@@ -702,15 +758,15 @@ export default function InvoiceGenerator({
             <table className="w-full text-left border-collapse relative z-10 print:border print:border-gray-300">
               <thead>
                 <tr className="bg-[#EEEEEE] text-black print:bg-gray-200 print:text-black">
-                  <th className="p-2 print:p-3 border print:border-gray-300 text-xs font-black w-12 text-center uppercase">#</th>
-                  <th className="p-2 print:p-3 border print:border-gray-300 text-xs font-black uppercase">ITEM PARTICULARS</th>
-                  <th className="p-2 print:p-3 border print:border-gray-300 text-xs font-black w-24 text-center uppercase">QTY</th>
-                  <th className="p-2 print:p-3 border print:border-gray-300 text-xs font-black w-32 text-right uppercase">PRICE</th>
-                  <th className="p-2 print:p-3 border print:border-gray-300 text-xs font-black w-32 text-right uppercase">TOTAL</th>
-                  <th className="p-2 border print:border-gray-300 text-xs font-black w-8 print:hidden"></th>
+                  <th className="p-1 print:p-2 border print:border-gray-300 text-[10px] font-black w-8 text-center uppercase">#</th>
+                  <th className="p-1 print:p-2 border print:border-gray-300 text-[10px] font-black uppercase">ITEM PARTICULARS</th>
+                  <th className="p-1 print:p-2 border print:border-gray-300 text-[10px] font-black w-20 text-center uppercase">QTY</th>
+                  <th className="p-1 print:p-2 border print:border-gray-300 text-[10px] font-black w-28 text-right uppercase">PRICE</th>
+                  <th className="p-1 print:p-2 border print:border-gray-300 text-[10px] font-black w-28 text-right uppercase">TOTAL</th>
+                  <th className="p-1 border print:border-gray-300 text-[10px] font-black w-8 print:hidden"></th>
                 </tr>
               </thead>
-              <tbody className="print:text-sm">
+              <tbody className="print:text-[11px]">
                 {/* Quick Add Row */}
                 <tr className="bg-blue-50/50 print:hidden border-b-2 border-blue-100">
                   <td className="p-2 text-center text-blue-400"><Plus size={16} className="mx-auto" /></td>
@@ -770,22 +826,22 @@ export default function InvoiceGenerator({
 
                 {items.map((item, idx) => (
                   <tr key={item.id} className="border-bottom print:border-gray-300">
-                    <td className="p-2 print:p-3 print:border text-center font-mono text-sm text-gray-500">{idx + 1}</td>
-                    <td className="p-2 print:p-3 print:border">
-                      <input type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full outline-none bg-transparent print:font-bold text-sm py-1" placeholder="Item Name" />
+                    <td className="p-1 print:p-1.5 print:border text-center font-mono text-[11px] text-gray-500">{idx + 1}</td>
+                    <td className="p-1 print:p-1.5 print:border">
+                      <input type="text" value={item.name} onChange={e => handleItemChange(item.id, 'name', e.target.value)} className="w-full outline-none bg-transparent print:font-bold text-xs py-0.5" placeholder="Item Name" />
                     </td>
-                    <td className="p-2 print:p-3 print:border">
-                      <input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', Number(e.target.value))} className="w-full outline-none bg-transparent text-center font-mono text-sm py-1" />
+                    <td className="p-1 print:p-1.5 print:border">
+                      <input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', Number(e.target.value))} className="w-full outline-none bg-transparent text-center font-mono text-[11px] py-0.5" />
                     </td>
-                    <td className="p-2 print:p-3 print:border text-right font-mono text-sm">
-                      <input type="number" min="0" value={item.rate || ''} onChange={e => handleItemChange(item.id, 'rate', Number(e.target.value))} className="w-full outline-none bg-transparent text-right py-1" placeholder="0.00" />
+                    <td className="p-1 print:p-1.5 print:border text-right font-mono text-[11px]">
+                      <input type="number" min="0" value={item.rate || ''} onChange={e => handleItemChange(item.id, 'rate', Number(e.target.value))} className="w-full outline-none bg-transparent text-right py-0.5" placeholder="0.00" />
                     </td>
-                    <td className="p-2 print:p-3 print:border text-right font-mono tracking-tight text-gray-800 text-sm font-bold">
+                    <td className="p-1 print:p-1.5 print:border text-right font-mono tracking-tight text-gray-800 text-[11px] font-bold">
                       {(item.quantity * item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="p-2 text-center print:hidden">
-                      <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:text-red-700 p-2">
-                        <Trash2 size={16} />
+                    <td className="p-1 text-center print:hidden">
+                      <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:text-red-700 p-1">
+                        <Trash2 size={14} />
                       </button>
                     </td>
                   </tr>
@@ -883,7 +939,7 @@ export default function InvoiceGenerator({
         <div className="mt-8 flex flex-wrap justify-end gap-4 print:hidden">
           <button 
              onClick={() => {
-                speak('Bill taiyar hai, ab aap print kar sakte hain', 'professional');
+                speak('Sales Invoice taiyar hai', 'professional');
                 window.print();
              }}
              className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-md font-bold hover:bg-green-700 transition-colors shadow-sm"

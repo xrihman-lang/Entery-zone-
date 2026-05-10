@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { getFirebase } from '../lib/firebase';
-import { Printer, FileDown } from 'lucide-react';
+import { Printer, FileDown, Settings } from 'lucide-react';
 import { Logo } from './Logo';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { speak } from '../lib/speech';
 
 import { numberToWords } from '../lib/numberToWords';
 
@@ -12,6 +13,16 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
   const [invoice, setInvoice] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Print Settings
+  const [showPhone, setShowPhone] = useState(true);
+  const [showAddress, setShowAddress] = useState(true);
+  const [showGST, setShowGST] = useState(true);
+
+  const handleToggleSetting = (setter: React.Dispatch<React.SetStateAction<boolean>>, value: boolean) => {
+    setter(!value);
+    speak('Setting badal di gayi hai', 'professional');
+  };
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -52,28 +63,27 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
     // Watermark
     docPdf.setTextColor(240, 240, 240);
     docPdf.setFontSize(100);
-    docPdf.text('zishan gdx', 35, 150, { angle: -45 });
+    docPdf.text('GDX', 35, 150, { angle: -45 });
 
     // Header Branding
     docPdf.setTextColor(0, 0, 0);
-    docPdf.setFontSize(28);
+    docPdf.setFontSize(10);
     docPdf.setFont("helvetica", "bold");
-    docPdf.text(invoice.brandName || "zishan gdx", 14, 25);
-    
-    docPdf.setFontSize(10);
-    docPdf.setFont("helvetica", "normal");
-    docPdf.text("TAX INVOICE", 14, 32);
+    docPdf.text("SALES INVOICE", 105, 15, { align: 'center' });
 
-    if(invoice.gstin) {
-       docPdf.text(`GSTIN: ${invoice.gstin}`, 14, 38);
-    }
+    docPdf.setFontSize(28);
+    docPdf.text(invoice.brandName || "GDX", 14, 25);
     
-    // Details right
+    docPdf.setFontSize(14);
+    docPdf.setTextColor(37, 99, 235);
+    docPdf.text("TWINKLE ENTERPRISES", 196, 25, { align: 'right' });
+    docPdf.setTextColor(0, 0, 0);
+
     docPdf.setFontSize(10);
     docPdf.setFont("helvetica", "normal");
-    docPdf.text(`Bill No: ${invoice.billNo}`, 150, 25);
+    docPdf.text(`Bill No: ${invoice.billNo}`, 196, 32, { align: 'right' });
     if(invoice.invoiceDate) {
-      docPdf.text(`Date: ${invoice.invoiceDate}`, 150, 32);
+      docPdf.text(`Date: ${new Date(invoice.invoiceDate).toLocaleDateString('en-IN')}`, 196, 38, { align: 'right' });
     }
 
     // Customer Details
@@ -157,7 +167,7 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
     docPdf.setFontSize(10);
     docPdf.setFont("helvetica", "normal");
     docPdf.setTextColor(150, 150, 150);
-    docPdf.text("Official Report by zishan gdx", 105, 280, { align: 'center' });
+    docPdf.text("Official Report by GDX", 105, 280, { align: 'center' });
 
     docPdf.save(`Invoice_${invoice.billNo}.pdf`);
   };
@@ -187,20 +197,41 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
   return (
     <div className="min-h-screen bg-gray-100 py-6 px-2 print:p-0 print:bg-white text-sm">
       <div className="max-w-3xl mx-auto">
-        <div className="flex justify-end gap-4 mb-4 print:hidden">
-          <button 
-             onClick={() => window.print()}
-             className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-bold hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            <Printer size={18} /> Print
-          </button>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4 print:hidden">
+          <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-center">
+            <Settings size={16} className="text-gray-400" />
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input type="checkbox" checked={showPhone} onChange={() => handleToggleSetting(setShowPhone, showPhone)} className="w-4 h-4 text-blue-600 rounded" />
+              <span className="text-xs font-bold text-gray-600">Show Phone</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input type="checkbox" checked={showAddress} onChange={() => handleToggleSetting(setShowAddress, showAddress)} className="w-4 h-4 text-blue-600 rounded" />
+              <span className="text-xs font-bold text-gray-600">Show Address</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input type="checkbox" checked={showGST} onChange={() => handleToggleSetting(setShowGST, showGST)} className="w-4 h-4 text-blue-600 rounded" />
+              <span className="text-xs font-bold text-gray-600">Show GST</span>
+            </label>
+          </div>
 
-          <button 
-             onClick={generatePDF}
-             className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            <FileDown size={18} /> Download PDF
-          </button>
+          <div className="flex gap-4">
+            <button 
+               onClick={() => {
+                 speak('Bill taiyar hai, ab aap print kar sakte hain', 'professional');
+                 window.print();
+               }}
+               className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-bold hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              <Printer size={18} /> Print
+            </button>
+
+            <button 
+               onClick={generatePDF}
+               className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <FileDown size={18} /> Download PDF
+            </button>
+          </div>
         </div>
 
         {/* Invoice Container */}
@@ -209,41 +240,46 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
           <style>
           {`
             @media print {
-              @page { size: A4 portrait; margin: 15mm; }
+              @page { size: A4 portrait; margin: 10mm; }
               body { background-color: white; }
               .print\\:flex { display: flex !important; }
-              .print-fixed-header { position: fixed; top: 0; left: 0; right: 0; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 15px; }
-              .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 40px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; }
-              .print-content-spacer { padding-top: 80px; padding-bottom: 60px; }
+              .print-fixed-header { position: static; top: auto; left: auto; right: auto; height: auto; background: white; z-index: 10; border-bottom: 2px solid #1f2937; padding-bottom: 4px; margin-bottom: 4px; }
+              .print-fixed-footer { position: fixed; bottom: 0; left: 0; right: 0; height: 30px; background: white; z-index: 10; border-top: 1px solid #d1d5db; display: flex; justify-content: space-between; align-items: center; }
+              .print-content-spacer { padding-top: 0px; padding-bottom: 30px; }
             }
           `}
           </style>
 
           {/* Global Watermark (Subtle on web, prominent on print) */}
           <div className="watermark-text">
-             ZISHAN GDX
+             GDX
           </div>
           
           {/* Brand Header for Print */}
-          <div className="hidden print:flex print-fixed-header justify-between items-center" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-             <div className="flex items-center">
-               {invoice.brandName === 'zishan gdx' || invoice.brandName === 'ZISHAN GDX' || !invoice.brandName ? (
-                 <Logo iconClassName="w-12 h-12 print:block forced-color-adjust-preserve" textClassName="text-3xl font-black text-blue-600 print:text-blue-600" />
-               ) : (
-                 <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">{invoice.brandName}</h1>
-               )}
-               {invoice.gstin && <p className="text-sm text-gray-600 font-bold mt-2">GSTIN: {invoice.gstin}</p>}
+          <div className="hidden print:flex flex-col border-b-2 border-gray-900 pb-1 mb-2" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+             <div className="w-full text-center py-1">
+                <h2 className="text-sm font-black text-gray-900 tracking-[0.3em] uppercase">SALES INVOICE</h2>
              </div>
-             <div className="text-right">
-               <p className="text-gray-900 font-bold tracking-widest uppercase text-xl">Tax Invoice</p>
-               <p className="text-sm font-mono mt-1 text-gray-600">Bill No: {invoice.billNo}</p>
+             <div className="w-full flex justify-between items-start mt-1">
+                <div className="w-1/2">
+                   <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase leading-none">{invoice.brandName || "GDX"}</h1>
+                   <p className="text-[10px] text-gray-600 font-bold mt-0.5 uppercase">{invoice.brandAddress}</p>
+                   {invoice.gstin && showGST && <p className="text-[10px] text-gray-500 font-bold">GSTIN: {invoice.gstin}</p>}
+                </div>
+                <div className="w-1/2 text-right">
+                   <h2 className="text-lg font-black text-blue-600 tracking-tight leading-none uppercase">TWINKLE ENTERPRISES</h2>
+                   <div className="mt-1 text-[10px] text-gray-700 space-y-0.5">
+                     <p className="font-black">BILL NO: {invoice.billNo}</p>
+                     <p className="font-bold uppercase">DATE: {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString('en-IN') : '-'}</p>
+                   </div>
+                </div>
              </div>
           </div>
           
           {/* Brand Footer for Print */}
           <div className="hidden print:flex print-fixed-footer">
              <span className="text-[10px] text-gray-500 uppercase tracking-widest">Thank You for Your Business!</span>
-             <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Official Report by zishan gdx</span>
+             <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Official Report by GDX</span>
           </div>
 
           <div className="p-6 print:p-0 print-content-spacer">
@@ -263,18 +299,23 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
                 </div>
              </div>
 
-             <div className="grid grid-cols-2 gap-4 mb-6 mt-4 print:mt-0">
-               <div>
-                 <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Billed To</h3>
-                 <p className="font-bold text-gray-900 text-base mb-0.5">{invoice.customerName}</p>
-                 {invoice.customerPhone && <p className="text-gray-600 text-xs">{invoice.customerPhone}</p>}
-                 {invoice.customerAddress && <p className="text-gray-600 mt-1 whitespace-pre-line text-xs">{invoice.customerAddress}</p>}
-               </div>
-               <div className="text-right text-xs">
-                 <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Date Details</h3>
-                 <p className="font-bold text-gray-900 inline-block mr-2">Invoice Date:</p>
-                 <p className="text-gray-600 inline-block">{invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString('en-IN') : '-'}</p>
-               </div>
+             <div className="hidden print:grid print:grid-cols-1 print:gap-0 border-y border-gray-300 py-1 mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase text-gray-500 w-24">Customer:</span>
+                  <span className="text-[11px] font-black uppercase text-gray-900">{invoice.customerName}</span>
+                </div>
+                {showPhone && invoice.customerPhone && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase text-gray-500 w-24">Phone:</span>
+                    <span className="text-[11px] font-bold text-gray-900">{invoice.customerPhone}</span>
+                  </div>
+                )}
+                {showAddress && invoice.customerAddress && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] font-black uppercase text-gray-500 w-24">Address:</span>
+                    <span className="text-[10px] font-medium text-gray-800 line-clamp-1">{invoice.customerAddress}</span>
+                  </div>
+                )}
              </div>
 
              <table className="w-full mb-6 border border-gray-300">
