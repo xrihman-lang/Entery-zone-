@@ -81,7 +81,7 @@ export default function InvoiceGenerator({
     }
   }, [localDate, invoiceDate]);
 
-  const [discountAmount, setManualDiscountAmount] = useState(0);
+  const [discountPercent, setDiscountPercent] = useState(0);
   const [globalTaxPercent, setGlobalTaxPercent] = useState(18);
   const [gstEnabled, setGstEnabled] = useState(true);
   const [globalRateType, setGlobalRateType] = useState<'MRP' | 'Normal' | 'Reddi'>('Normal');
@@ -275,7 +275,8 @@ export default function InvoiceGenerator({
     const cgstTotal = taxAmount / 2;
     const sgstTotal = taxAmount / 2;
     
-    const totalQty = items.reduce((acc, item) => acc + item.quantity, 0);
+    const totalBoxes = items.reduce((acc, item) => acc + item.quantity, 0);
+    const discountAmount = (subtotal + taxAmount) * (discountPercent / 100);
     const grandTotal = (subtotal + taxAmount) - discountAmount;
 
     return {
@@ -283,13 +284,13 @@ export default function InvoiceGenerator({
       cgst: cgstTotal,
       sgst: sgstTotal,
       totalTax: taxAmount,
-      totalQty,
+      totalBoxes,
       discountAmount,
       grandTotal: grandTotal > 0 ? grandTotal : 0
     };
-  }, [items, discountAmount, globalTaxPercent, gstEnabled]);
+  }, [items, discountPercent, globalTaxPercent, gstEnabled]);
 
-  const { subtotal, cgst, sgst, totalTax, totalQty, grandTotal } = calculations;
+  const { subtotal, cgst, sgst, totalTax, totalBoxes, discountAmount, grandTotal } = calculations;
 
   const handleSaveBill = async () => {
     if (!user) {
@@ -345,9 +346,10 @@ export default function InvoiceGenerator({
         globalTaxPercent,
         rateType: globalRateType,
         items,
-        totalQty,
+        totalBoxes,
         subtotal,
         totalTax,
+        discountPercent,
         discountAmount,
         grandTotal,
         createdAt: serverTimestamp(),
@@ -398,7 +400,7 @@ export default function InvoiceGenerator({
       setCustomerPhone('');
       setCustomerAddress('');
       setItems([]);
-      setManualDiscountAmount(0);
+      setDiscountPercent(0);
       
       onSaved();
     } catch (e) {
@@ -811,6 +813,11 @@ export default function InvoiceGenerator({
            <div className="w-full md:w-1/2 ml-auto print:w-1/2 print:ml-auto">
               <div className="bg-gray-50 p-6 rounded border border-gray-200 print:bg-transparent print:border-none print:p-0">
                   <div className="flex justify-between mb-3 border-b border-gray-200 print:border-gray-400 pb-2 print:text-black">
+                    <span className="font-bold text-gray-600 print:text-black print-summary-label">TOTAL BOXES:</span>
+                    <span className="font-mono font-bold text-gray-800 print:text-black text-base">{totalBoxes}</span>
+                  </div>
+
+                  <div className="flex justify-between mb-3 border-b border-gray-200 print:border-gray-400 pb-2 print:text-black">
                     <span className="font-bold text-gray-600 print:text-black print-summary-label">GROSS AMOUNT:</span>
                     <span className="font-mono font-bold text-gray-800 print:text-black text-base">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
@@ -835,21 +842,27 @@ export default function InvoiceGenerator({
                   )}
                   
                   <div className="flex justify-between items-center mb-4 border-b border-gray-300 print:border-gray-400 pb-4 print:hidden">
-                    <span className="font-bold text-gray-600">Manual Discount (₹):</span>
+                    <span className="font-bold text-gray-600 text-sm">Discount (%):</span>
                     <div className="flex items-center gap-2">
                        <input 
                         type="number" 
                         min="0"
-                        value={discountAmount} 
-                        onChange={e => setManualDiscountAmount(parseFloat(e.target.value) || 0)} 
-                        className="w-24 px-2 py-1 border rounded text-right font-mono bg-green-50 border-green-200" 
+                        max="100"
+                        value={discountPercent} 
+                        onChange={e => {
+                          const val = parseFloat(e.target.value) || 0;
+                          if (val > 0) speak('Discount apply kar diya gaya hai', 'professional');
+                          setDiscountPercent(val);
+                        }} 
+                        className="w-24 px-2 py-1 border-2 border-green-200 rounded text-right font-mono font-bold bg-green-50 text-green-700 outline-none focus:ring-2 focus:ring-green-400" 
+                        placeholder="0%"
                       />
                     </div>
                   </div>
 
                   {discountAmount > 0 && (
                     <div className="flex justify-between mb-3 text-sm text-green-700 print:text-black border-b border-gray-200 print:border-gray-400 pb-2">
-                       <span className="font-bold print-summary-label">DISCOUNT:</span>
+                       <span className="font-bold print-summary-label">DISCOUNT ({discountPercent}%):</span>
                        <span className="font-mono font-bold text-base">-₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                   )}

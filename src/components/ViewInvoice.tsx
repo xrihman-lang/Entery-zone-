@@ -125,7 +125,7 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
     const finalY = (docPdf as any).lastAutoTable.finalY + 10;
     
     docPdf.setFont("helvetica", "bold");
-    docPdf.text(`Total Qty (Dabba): ${invoice.totalQty || 0}`, 14, finalY);
+    docPdf.text(`Total Boxes: ${invoice.totalBoxes || invoice.totalQty || 0}`, 14, finalY);
 
     docPdf.setFont("helvetica", "normal");
     docPdf.text(`Subtotal:`, 140, finalY);
@@ -317,8 +317,8 @@ export default function ViewInvoice({ invoiceId }: { invoiceId: string }) {
                 <div className="w-full md:w-2/5 print:w-2/5">
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs">
-                      <span className="font-bold text-gray-600 uppercase tracking-tighter">Total Qty (Dabba):</span>
-                      <span className="font-black text-gray-900 border-b-2 border-blue-200">{invoice.totalQty || 0}</span>
+                      <span className="font-bold text-gray-600 uppercase tracking-tighter">Total Boxes:</span>
+                      <span className="font-black text-gray-900 border-b-2 border-blue-200">{invoice.totalBoxes || invoice.totalQty || 0}</span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="font-bold text-gray-600">Subtotal:</span>
