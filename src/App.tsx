@@ -95,6 +95,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [localMode, setLocalMode] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [totalEntryCount, setTotalEntryCount] = useState(0);
   const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice' | 'history' | 'stock' | 'admin'>('standard');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -124,45 +125,19 @@ export default function App() {
   const { isPremium, expiryDate, loading: premiumLoading } = usePremiumStatus(user);
   const [bulkInput, setBulkInput] = useState('');
 
-  // --- Auto-popup for Subscription ---
+  // --- No Auto-popup for Subscription (Replaced with persistent banner) ---
   useEffect(() => {
     if (premiumLoading || !user) return;
-
-    const checkAndPopup = () => {
-      let shouldPopup = false;
-      
+    
+    // We only show the modal once on login if not premium
+    const initialTimeout = setTimeout(() => {
       if (!isPremium) {
-        shouldPopup = true;
-      } else if (expiryDate) {
-        const now = new Date();
-        const timeLeft = expiryDate.getTime() - now.getTime();
-        const oneDayMs = 24 * 60 * 60 * 1000;
-        
-        // If expiry is within 1 day (but still premium)
-        if (timeLeft > 0 && timeLeft <= oneDayMs) {
-          shouldPopup = true;
-        }
-      }
-
-      if (shouldPopup) {
         setIsSubscriptionModalOpen(true);
-        // Auto-hide after 15 seconds
-        setTimeout(() => {
-          setIsSubscriptionModalOpen(false);
-        }, 15000);
       }
-    };
+    }, 5000);
 
-    // Initial check (maybe wait a bit after login)
-    const initialTimeout = setTimeout(checkAndPopup, 30000); // 30 seconds after load/login
-
-    const popupInterval = setInterval(checkAndPopup, 300000); // Every 5 minutes
-
-    return () => {
-      clearTimeout(initialTimeout);
-      clearInterval(popupInterval);
-    };
-  }, [isPremium, premiumLoading, user, expiryDate]);
+    return () => clearTimeout(initialTimeout);
+  }, [isPremium, premiumLoading, user]);
 
   // --- Exit Intent Guidance ---
   useEffect(() => {
@@ -348,16 +323,19 @@ export default function App() {
 
       let q = query(collection(db, 'entries'), where('userId', '==', user.uid));
       
-      try {
-        const snapshot = await getDocs(q);
-        let docs = snapshot.docs.map(doc => ({
-          ...doc.data(),
-          id: doc.id,
-        })) as Entry[];
+        try {
+          const snapshot = await getDocs(q);
+          const allDocs = snapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+          })) as Entry[];
 
-        // Perform date filtering locally since composite indexes aren't created by default
-        if (from) docs = docs.filter(doc => doc.date >= from!);
-        if (to) docs = docs.filter(doc => doc.date <= to!);
+          setTotalEntryCount(allDocs.length);
+
+          // Perform date filtering locally since composite indexes aren't created by default
+          let docs = [...allDocs];
+          if (from) docs = docs.filter(doc => doc.date >= from!);
+          if (to) docs = docs.filter(doc => doc.date <= to!);
 
         docs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
@@ -386,6 +364,13 @@ export default function App() {
     if (!formData.customerName || !formData.totalAmount) return;
 
     if (!editingId) {
+      // Free User Entry Limit (20)
+      if (!isPremium && totalEntryCount >= 20) {
+        speak('Aapki free entry limit khatam ho gayi hai. Kripya premium subscription lein.', 'professional');
+        setIsSubscriptionModalOpen(true);
+        showToast('Free limit reached (Max 20 entries)', 'error');
+        return;
+      }
       speak('Nayi entry joad di gayi hai', 'professional');
     } else {
       speak('Entry surakshit kar li gayi hai', 'professional');
@@ -801,6 +786,24 @@ export default function App() {
           </AnimatePresence>
         </div>
 
+        {/* Persistent Premium Banner */}
+        {!isPremium && !premiumLoading && user && (
+          <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-2 px-4 flex flex-wrap items-center justify-between gap-3 text-sm font-bold print:hidden">
+            <div className="flex items-center gap-2">
+              <Crown size={16} className="text-amber-200" />
+              <span>
+                Free Plan: {totalEntryCount}/20 Entries Used. Upgrade for Unlimited access and Cloud backup!
+              </span>
+            </div>
+            <button 
+              onClick={() => setIsSubscriptionModalOpen(true)}
+              className="bg-white text-orange-600 px-3 py-1 rounded-full text-xs font-black uppercase hover:bg-orange-50 transition-colors shadow-sm"
+            >
+              Get Premium Now
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <header className="bg-white border-b border-gray-200 p-4 flex flex-col items-center md:flex-row justify-between gap-4 print:hidden rounded-t-lg">
           <div className="flex items-center gap-4">
@@ -956,7 +959,7 @@ export default function App() {
         {activeTab === 'admin' ? (
           <AdminDashboard />
         ) : activeTab === 'invoice' ? (
-          <InvoiceGenerator user={user} onSaved={() => setActiveTab('standard')} />
+          <InvoiceGenerator user={user} onSaved={() => setActiveTab('standard')} isPremium={isPremium} onRequirePremium={() => setIsSubscriptionModalOpen(true)} />
         ) : activeTab === 'history' ? (
           <InvoiceHistory user={user} />
         ) : activeTab === 'stock' ? (

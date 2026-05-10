@@ -29,8 +29,9 @@ interface InvoiceItem {
 }
 
 
-export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved: () => void }) {
+export default function InvoiceGenerator({ user, onSaved, isPremium, onRequirePremium }: { user: any, onSaved: () => void, isPremium: boolean, onRequirePremium: () => void }) {
   const [billNo, setBillNo] = useState('');
+  const [invoiceCount, setInvoiceCount] = useState(0);
   const [brandName, setBrandName] = useState('GDX');
   const [brandAddress, setBrandAddress] = useState('Main Bazaar, New Delhi - 110001');
   const [industry, setIndustry] = useState<IndustryType>('General Grocery');
@@ -82,7 +83,19 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
   useEffect(() => {
     // Generate a random Bill No on mount
     setBillNo(`INV-${Math.floor(1000 + Math.random() * 9000)}`);
-  }, []);
+    
+    // Fetch total invoice count for limit check
+    if (!isPremium && user) {
+      const fetchCount = async () => {
+        const { db } = await getFirebase();
+        if (!db) return;
+        const q = query(collection(db, 'invoices'), where('userId', '==', user.uid));
+        const snap = await getDocs(q);
+        setInvoiceCount(snap.size);
+      };
+      fetchCount();
+    }
+  }, [user, isPremium]);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     const id = crypto.randomUUID();
@@ -262,6 +275,13 @@ export default function InvoiceGenerator({ user, onSaved }: { user: any, onSaved
       alert("Please login to save the bill.");
       return;
     }
+
+    if (!isPremium && invoiceCount >= 20) {
+      speak('Aapki free entry limit khatam ho gayi hai. Kripya premium subscription lein.', 'professional');
+      onRequirePremium();
+      return;
+    }
+
     setSaving(true);
     try {
       const { db } = await getFirebase();
