@@ -58,6 +58,7 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
                       updatedAt: new Date().toISOString()
                   }, { merge: true });
 
+                  speak('Badhaai ho! Aapka GDX Premium ab active hai', 'professional');
                   alert(`Payment Successful! You are now subscribed to ${planName} plan.`);
                   onClose();
               } catch (error) {

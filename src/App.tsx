@@ -107,7 +107,7 @@ export default function App() {
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-  const isAdminEmail = user?.email === 'xrihman@gmail.com';
+  const isAdminEmail = user?.email === 'xrihman@gmail.com' || user?.email === 'mohdalikhan990x@gmail.com';
 
   // Use dynamically updated localDate instead of static initialization
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);

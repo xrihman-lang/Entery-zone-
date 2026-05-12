@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import { useProducts, Product } from '../context/ProductsContext';
 import { useCustomers } from '../context/CustomerContext';
 import { useSalesmen } from '../context/SalesmanContext';
-import { Package, DollarSign, Users, ChevronRight, Check, AlertCircle, UserPlus, Trash2 } from 'lucide-react';
+import { Package, DollarSign, Users, ChevronRight, Check, AlertCircle, UserPlus, Trash2, Crown, Search, Mail } from 'lucide-react';
+import { motion } from 'motion/react';
+import { getFirebase } from '../lib/firebase';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { speak } from '../lib/speech';
 
 export function AdminDashboard() {
   const { products, updateProduct } = useProducts();
   const { customers, updateCreditLimit } = useCustomers();
   const { salesmen, addSalesman, removeSalesman } = useSalesmen();
-  const [activeTab, setActiveTab] = useState<'prices' | 'credit' | 'salesmen'>('prices');
+  const [activeTab, setActiveTab] = useState<'prices' | 'credit' | 'salesmen' | 'subscriptions'>('prices');
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState<number>(0);
@@ -18,6 +22,53 @@ export function AdminDashboard() {
   const [editCreditLimit, setEditCreditLimit] = useState<number>(0);
 
   const [newSalesmanName, setNewSalesmanName] = useState('');
+
+  // Subscription Manual Override
+  const [emailToActivate, setEmailToActivate] = useState('');
+  const [activationMonths, setActivationMonths] = useState(12);
+  const [isActivating, setIsActivating] = useState(false);
+  const [activationResult, setActivationResult] = useState<{success: boolean, message: string} | null>(null);
+
+  const handleManualActivate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailToActivate.trim()) return;
+
+    setIsActivating(true);
+    setActivationResult(null);
+
+    try {
+      const { db } = await getFirebase();
+      if (!db) throw new Error("Database not connected");
+
+      const q = query(collection(db, 'users'), where('email', '==', emailToActivate.trim()));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        setActivationResult({ success: false, message: "User not found with this email. Ask them to login once first." });
+        return;
+      }
+
+      const userDoc = snap.docs[0];
+      const expiryDate = new Date();
+      expiryDate.setMonth(expiryDate.getMonth() + activationMonths);
+
+      await updateDoc(doc(db, 'users', userDoc.id), {
+        isPremium: true,
+        planName: 'Admin Activated',
+        expiryDate: expiryDate.toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      speak('Premium status successfully activated for user', 'professional');
+      setActivationResult({ success: true, message: `Activated premium for ${emailToActivate} until ${expiryDate.toLocaleDateString()}` });
+      setEmailToActivate('');
+    } catch (error: any) {
+      console.error(error);
+      setActivationResult({ success: false, message: "Error: " + error.message });
+    } finally {
+      setIsActivating(false);
+    }
+  };
 
   const handleAddSalesman = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,9 +177,92 @@ export function AdminDashboard() {
         >
           <Users size={16} /> Credit Manager
         </button>
+        <button 
+          onClick={() => setActiveTab('subscriptions')} 
+          className={`flex-1 py-3 px-4 font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 ${activeTab === 'subscriptions' ? 'bg-gray-50 border-b-2 border-yellow-600 text-yellow-600' : 'text-gray-500 hover:bg-gray-50'}`}
+        >
+          <Crown size={16} /> Subscriptions
+        </button>
       </div>
 
       <div className="p-6">
+        {activeTab === 'subscriptions' && (
+          <div className="max-w-2xl mx-auto">
+            <h3 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
+              <Crown className="text-yellow-600" /> Manual Premium Activation
+            </h3>
+            
+            <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-2xl shadow-sm">
+                <form onSubmit={handleManualActivate} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-black text-gray-700 uppercase tracking-widest mb-2">Customer Registered Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <input 
+                        type="email" 
+                        required
+                        value={emailToActivate}
+                        onChange={e => setEmailToActivate(e.target.value)}
+                        placeholder="customer@example.com"
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:border-yellow-500 focus:ring-4 focus:ring-yellow-100 outline-none transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-gray-700 uppercase tracking-widest mb-2">Subscription Duration</label>
+                    <select 
+                      value={activationMonths}
+                      onChange={e => setActivationMonths(Number(e.target.value))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:border-yellow-500 outline-none font-medium"
+                    >
+                      <option value={1}>1 Month (Trial/Monthly)</option>
+                      <option value={3}>3 Months (Quarterly)</option>
+                      <option value={6}>6 Months (Half-Yearly)</option>
+                      <option value={12}>12 Months (Yearly Business Elite)</option>
+                      <option value={120}>10 Years (Lifetime/Special)</option>
+                    </select>
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={isActivating}
+                    className="w-full bg-gray-900 hover:bg-black text-white font-black py-4 rounded-xl shadow-lg shadow-gray-200 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+                  >
+                    {isActivating ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <>
+                        <Crown className="text-yellow-500 group-hover:scale-125 transition-transform" /> 
+                        Activate Premium Instantly
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {activationResult && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`mt-6 p-4 rounded-xl flex items-start gap-3 ${activationResult.success ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`}
+                  >
+                    {activationResult.success ? <Check className="mt-1 flex-shrink-0" /> : <AlertCircle className="mt-1 flex-shrink-0" />}
+                    <p className="text-sm font-bold">{activationResult.message}</p>
+                  </motion.div>
+                )}
+            </div>
+
+            <div className="mt-8 bg-gray-50 border border-gray-200 p-4 rounded-xl">
+               <h4 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Instructions:</h4>
+               <ul className="text-xs text-gray-600 space-y-1 font-medium">
+                 <li>• Enter the exact email the customer uses to log in.</li>
+                 <li>• If they haven't logged in yet, ask them to sign in once so their profile is created.</li>
+                 <li>• This override bypasses Razorpay and activates premium immediately.</li>
+                 <li>• Status is synced in real-time to the user's device.</li>
+               </ul>
+            </div>
+          </div>
+        )}
         {activeTab === 'prices' && (
           <div>
             <h3 className="text-lg font-black text-gray-900 mb-4">Product Price Management</h3>
