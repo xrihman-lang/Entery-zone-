@@ -203,7 +203,7 @@ export default function App() {
         createdAt: serverTimestamp(),
       });
 
-      const whatsappNumber = "917075162279";
+      const whatsappNumber = "917065162279";
       const text = `Hello Zishan, my name is ${supportName}. I have an issue: ${supportMessage}`;
       const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
       
