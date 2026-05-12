@@ -202,8 +202,19 @@ export default function App() {
         message: supportMessage,
         createdAt: serverTimestamp(),
       });
-      speak('Aapki shikayat xrihman@gmail.com par bhej di gayi hai', 'professional');
-      showToast('Support ticket sent to xrihman@gmail.com!');
+
+      const whatsappNumber = "917075162279";
+      const text = `Hello Zishan, my name is ${supportName}. I have an issue: ${supportMessage}`;
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
+      
+      speak('Aapka message WhatsApp par bheja ja raha hai', 'professional');
+      
+      // Open WhatsApp and close modal
+      setTimeout(() => {
+        window.open(whatsappUrl, '_blank');
+      }, 1000);
+
+      showToast('Message redirected to WhatsApp!');
       setSupportName('');
       setSupportMessage('');
       setIsSupportOpen(false);
@@ -1727,9 +1738,16 @@ export default function App() {
               <button 
                 type="submit" 
                 disabled={supportSaving}
-                className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-3 px-4 rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-sm disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-4 px-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-lg shadow-gray-200 disabled:opacity-50 active:scale-[0.98]"
               >
-                {supportSaving ? 'Submitting...' : <><Send size={18} /> Submit Ticket</>}
+                {supportSaving ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <MessageCircle size={18} className="text-green-400" />
+                    Submit Ticket via WhatsApp
+                  </>
+                )}
               </button>
             </form>
 
