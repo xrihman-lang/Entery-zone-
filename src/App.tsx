@@ -197,11 +197,13 @@ export default function App() {
       await addDoc(collection(db, 'support_tickets'), {
         userId: user?.uid || null,
         userEmail: user?.email || null,
+        recipientEmail: 'xrihman@gmail.com',
         name: supportName,
         message: supportMessage,
         createdAt: serverTimestamp(),
       });
-      showToast('Support ticket submitted!');
+      speak('Aapki shikayat xrihman@gmail.com par bhej di gayi hai', 'professional');
+      showToast('Support ticket sent to xrihman@gmail.com!');
       setSupportName('');
       setSupportMessage('');
       setIsSupportOpen(false);
