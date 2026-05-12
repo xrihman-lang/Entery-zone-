@@ -25,6 +25,7 @@ export function AdminDashboard() {
 
   // Subscription Manual Override
   const [emailToActivate, setEmailToActivate] = useState('');
+  const [manualTxnId, setManualTxnId] = useState('');
   const [activationMonths, setActivationMonths] = useState(12);
   const [isActivating, setIsActivating] = useState(false);
   const [activationResult, setActivationResult] = useState<{success: boolean, message: string} | null>(null);
@@ -56,12 +57,14 @@ export function AdminDashboard() {
         isPremium: true,
         planName: 'Admin Activated',
         expiryDate: expiryDate.toISOString(),
+        lastTransactionId: manualTxnId || 'ADMIN_OVERRIDE',
         updatedAt: new Date().toISOString()
       });
 
       speak('Premium status successfully activated for user', 'professional');
       setActivationResult({ success: true, message: `Activated premium for ${emailToActivate} until ${expiryDate.toLocaleDateString()}` });
       setEmailToActivate('');
+      setManualTxnId('');
     } catch (error: any) {
       console.error(error);
       setActivationResult({ success: false, message: "Error: " + error.message });
@@ -205,6 +208,20 @@ export function AdminDashboard() {
                         onChange={e => setEmailToActivate(e.target.value)}
                         placeholder="customer@example.com"
                         className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:border-yellow-500 focus:ring-4 focus:ring-yellow-100 outline-none transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-gray-700 uppercase tracking-widest mb-2">Transaction ID (Optional)</label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <input 
+                        type="text" 
+                        value={manualTxnId}
+                        onChange={e => setManualTxnId(e.target.value)}
+                        placeholder="pay_xxxxxxxxxxxxxx"
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:border-yellow-500 outline-none font-medium text-xs"
                       />
                     </div>
                   </div>

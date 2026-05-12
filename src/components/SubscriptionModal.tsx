@@ -39,6 +39,9 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
           name: "GDX",
           description: `${planName} Subscription`,
           image: "https://your-logo-url.com/logo.png",
+          notes: {
+            auto_capture: "1" // Hint for Razorpay to capture automatically if possible in this mode
+          },
           handler: async function (response: any) {
               if (!user) {
                   alert("Please login first.");
@@ -55,11 +58,12 @@ export default function SubscriptionModal({ isOpen, onClose, user, isNearExpiry 
                       isPremium: true,
                       planName: planName,
                       expiryDate: expiryDate.toISOString(),
+                      lastTransactionId: response.razorpay_payment_id || 'manual',
                       updatedAt: new Date().toISOString()
                   }, { merge: true });
 
-                  speak('Badhaai ho! Aapka GDX Premium ab active hai', 'professional');
-                  alert(`Payment Successful! You are now subscribed to ${planName} plan.`);
+                  speak('Payment safal rahi, aapka premium chalu ho gaya hai', 'professional');
+                  alert(`Victory! ${planName} Plan Activated successfully.`);
                   onClose();
               } catch (error) {
                   console.error("Error updating user status:", error);
