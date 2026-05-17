@@ -30,6 +30,7 @@ import {
   increment
 } from 'firebase/firestore';
 import { getFirebase } from './lib/firebase';
+import { WelcomeScreen } from './components/WelcomeScreen';
 import LoginPage from './components/LoginPage';
 import InvoiceGenerator from './components/InvoiceGenerator';
 import InvoiceHistory from './components/InvoiceHistory';
@@ -104,6 +105,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   
   // Admin logic
+  const [hasEnteredApp, setHasEnteredApp] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
@@ -804,12 +806,26 @@ export default function App() {
   }
 
   if (!user && !localMode) {
-    return <LoginPage onLoginSuccess={() => {}} onSkipLogin={() => setLocalMode(true)} />;
+    return (
+      <AnimatePresence mode="wait">
+        {!hasEnteredApp ? (
+          <WelcomeScreen key="welcome" onEnter={() => setHasEnteredApp(true)} />
+        ) : (
+          <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full h-full">
+            <LoginPage onLoginSuccess={() => {}} onSkipLogin={() => setLocalMode(true)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-2 md:p-4 font-sans text-gray-900 print:p-0 print:bg-white print:text-black">
-      <div className="max-w-6xl mx-auto bg-white border border-gray-200 shadow-xl rounded-lg overflow-hidden print:overflow-visible print:shadow-none print:m-0 print:border-none">
+    <AnimatePresence mode="wait">
+      {!hasEnteredApp ? (
+        <WelcomeScreen key="welcome" onEnter={() => setHasEnteredApp(true)} />
+      ) : (
+        <motion.div key="app" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className="min-h-screen bg-gray-50 p-2 md:p-4 font-sans text-gray-900 print:p-0 print:bg-white print:text-black">
+          <div className="max-w-6xl mx-auto bg-white border border-gray-200 shadow-xl rounded-lg overflow-hidden print:overflow-visible print:shadow-none print:m-0 print:border-none">
         
         {/* Toast Notifications */}
         <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2">
@@ -1819,6 +1835,8 @@ export default function App() {
           tfoot td { border-top: 2px solid #374151 !important; }
         }
       `}</style>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
