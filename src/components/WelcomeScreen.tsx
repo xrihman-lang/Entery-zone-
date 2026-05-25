@@ -4,6 +4,7 @@ import { Code, Gamepad2, Cpu, ChevronRight } from 'lucide-react';
 
 interface WelcomeScreenProps {
   onEnter: () => void;
+  key?: React.Key;
 }
 
 export function WelcomeScreen({ onEnter }: WelcomeScreenProps) {

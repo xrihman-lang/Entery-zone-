@@ -80,7 +80,7 @@ interface Entry {
   id: string;
   date: string;
   customerName: string;
-  type: 'S' | 'O' | 'V' | 'K' | 'D' | 'SU' | 'OM';
+  type: 'S' | 'O' | 'V' | 'K' | 'D' | 'SU' | 'OM' | 'Aadil' | 'Ashish';
   rateType: 'MRP' | 'Normal' | 'Reddi';
   quantity: number;
   rate: number;
@@ -100,7 +100,7 @@ export default function App() {
   const [dailyEntryCount, setDailyEntryCount] = useState(0);
   const [totalInvoiceCount, setTotalInvoiceCount] = useState(0);
   const [dailyInvoiceCount, setDailyInvoiceCount] = useState(0);
-  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'invoice' | 'history' | 'stock' | 'admin'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'aadil' | 'ashish' | 'invoice' | 'history' | 'stock' | 'admin'>('standard');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -260,11 +260,28 @@ export default function App() {
   const [formData, setFormData] = useState({
     date: getLocalDateString(),
     customerName: '',
-    type: 'S' as 'S' | 'O' | 'V' | 'K' | 'D' | 'SU' | 'OM',
+    type: 'S' as 'S' | 'O' | 'V' | 'K' | 'D' | 'SU' | 'OM' | 'Aadil' | 'Ashish',
     quantity: '1',
     totalAmount: '',
     receivedAmount: '',
   });
+
+  useEffect(() => {
+    if (!editingId) {
+      setFormData(prev => {
+        let newType = prev.type;
+        if (activeTab === 'vrs') newType = 'V';
+        else if (activeTab === 'aadil') newType = 'Aadil';
+        else if (activeTab === 'ashish') newType = 'Ashish';
+        else if (activeTab === 'standard' && ['V', 'Aadil', 'Ashish'].includes(prev.type)) newType = 'S';
+        
+        if (newType !== prev.type) {
+          return { ...prev, type: newType };
+        }
+        return prev;
+      });
+    }
+  }, [activeTab, editingId]);
 
   // Sync dates at midnight (auto-refresh)
   useEffect(() => {
@@ -454,9 +471,11 @@ export default function App() {
       } else {
         setEntries(prev => [newEntry, ...prev]);
         showToast('Entry saved!');
-        // Auto-switch tab if added to the other one
-        if (formData.type === 'V' && activeTab === 'standard') setActiveTab('vrs');
-        if (formData.type !== 'V' && activeTab === 'vrs') setActiveTab('standard');
+        // Auto-switch tab
+        if (formData.type === 'V') setActiveTab('vrs');
+        else if (formData.type === 'Aadil') setActiveTab('aadil');
+        else if (formData.type === 'Ashish') setActiveTab('ashish');
+        else setActiveTab('standard');
       }
 
       setFormData({
@@ -532,9 +551,11 @@ export default function App() {
         }
         
         showToast('Entry saved!');
-        // Auto-switch tab if added to the other one
-        if (formData.type === 'V' && activeTab === 'standard') setActiveTab('vrs');
-        if (formData.type !== 'V' && activeTab === 'vrs') setActiveTab('standard');
+        // Auto-switch tab
+        if (formData.type === 'V') setActiveTab('vrs');
+        else if (formData.type === 'Aadil') setActiveTab('aadil');
+        else if (formData.type === 'Ashish') setActiveTab('ashish');
+        else setActiveTab('standard');
       }
 
       setFormData({
@@ -565,6 +586,8 @@ export default function App() {
     });
     // Ensure we are on the right tab to see it
     if (entry.type === 'V') setActiveTab('vrs');
+    else if (entry.type === 'Aadil') setActiveTab('aadil');
+    else if (entry.type === 'Ashish') setActiveTab('ashish');
     else setActiveTab('standard');
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -689,7 +712,13 @@ export default function App() {
   const filteredEntries = useMemo(() => {
     return entries.filter(entry => {
       const entryDate = new Date(entry.date);
-      const matchesTab = activeTab === 'vrs' ? entry.type === 'V' : entry.type !== 'V';
+      let matchesTab = false;
+      if (activeTab === 'vrs') matchesTab = entry.type === 'V';
+      else if (activeTab === 'aadil') matchesTab = entry.type === 'Aadil';
+      else if (activeTab === 'ashish') matchesTab = entry.type === 'Ashish';
+      else if (activeTab === 'standard') matchesTab = !['V', 'Aadil', 'Ashish'].includes(entry.type);
+      else matchesTab = true;
+
       const matchesSearch = entry.customerName.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesMonth = filterMonth === 0 ? true : (entryDate.getMonth() + 1 === filterMonth && entryDate.getFullYear() === filterYear);
       const matchesFromDate = filterFromDate ? entry.date >= filterFromDate : true;
@@ -1014,6 +1043,26 @@ export default function App() {
             VRS People Only
           </button>
           <button
+            onClick={() => setActiveTab('aadil')}
+            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+              activeTab === 'aadil' 
+              ? 'bg-white border-pink-600 text-pink-600' 
+              : 'text-gray-500 hover:text-gray-700 border-transparent'
+            }`}
+          >
+            Aadil
+          </button>
+          <button
+            onClick={() => setActiveTab('ashish')}
+            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+              activeTab === 'ashish' 
+              ? 'bg-white border-teal-600 text-teal-600' 
+              : 'text-gray-500 hover:text-gray-700 border-transparent'
+            }`}
+          >
+            Ashish
+          </button>
+          <button
             onClick={() => setActiveTab('invoice')}
             className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
               activeTab === 'invoice' 
@@ -1134,6 +1183,8 @@ export default function App() {
                     >
                       <option value="S">S (Regular)</option>
                       <option value="V">V (VRS)</option>
+                      <option value="Aadil">Aadil</option>
+                      <option value="Ashish">Ashish</option>
                       <option value="O">O (Others)</option>
                       <option value="K">K (Khalis)</option>
                     </select>
@@ -1421,9 +1472,11 @@ export default function App() {
                           entry.type === 'O' ? 'bg-blue-100 text-blue-700' :
                           entry.type === 'V' ? 'bg-purple-100 text-purple-700' :
                           entry.type === 'K' ? 'bg-indigo-100 text-indigo-700' :
-                          entry.type === 'D' ? 'bg-teal-100 text-teal-700' :
-                          entry.type === 'SU' ? 'bg-orange-100 text-orange-700' :
-                          'bg-pink-100 text-pink-700'
+                          entry.type === 'Aadil' ? 'bg-pink-100 text-pink-700' :
+                          entry.type === 'Ashish' ? 'bg-teal-100 text-teal-700' :
+                          entry.type === 'D' ? 'bg-orange-100 text-orange-700' :
+                          entry.type === 'SU' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
                         }`}>
                           {entry.type}
                         </span>
