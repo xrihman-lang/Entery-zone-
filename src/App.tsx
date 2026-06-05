@@ -408,6 +408,7 @@ export default function App() {
     if (name === 'date') {
       setFilterFromDate(value);
       setFilterToDate(value);
+      setFilterMonth(0);
     }
   };
 
@@ -720,7 +721,9 @@ export default function App() {
       else matchesTab = true;
 
       const matchesSearch = entry.customerName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesMonth = filterMonth === 0 ? true : (entryDate.getMonth() + 1 === filterMonth && entryDate.getFullYear() === filterYear);
+      const matchesMonth = (!filterFromDate && !filterToDate && filterMonth !== 0) 
+                           ? (entryDate.getMonth() + 1 === filterMonth && entryDate.getFullYear() === filterYear) 
+                           : true;
       const matchesFromDate = filterFromDate ? entry.date >= filterFromDate : true;
       const matchesToDate = filterToDate ? entry.date <= filterToDate : true;
       return matchesTab && matchesSearch && matchesMonth && matchesFromDate && matchesToDate;
@@ -812,8 +815,8 @@ export default function App() {
 
   const clearFilters = () => {
     setSearchTerm('');
-    setFilterFromDate('');
-    setFilterToDate('');
+    setFilterFromDate(getLocalDateString());
+    setFilterToDate(getLocalDateString());
     setFilterMonth(new Date().getMonth() + 1);
     setFilterYear(new Date().getFullYear());
   };
@@ -1359,7 +1362,11 @@ export default function App() {
               <span className="text-xs font-bold text-gray-500 uppercase">Month:</span>
               <select 
                 value={filterMonth}
-                onChange={(e) => setFilterMonth(Number(e.target.value))}
+                onChange={(e) => {
+                  setFilterMonth(Number(e.target.value));
+                  setFilterFromDate('');
+                  setFilterToDate('');
+                }}
                 className="px-2 py-1.5 border border-gray-300 rounded text-sm outline-none focus:border-blue-500 bg-white"
               >
                 <option value={0}>All Months</option>
@@ -1383,7 +1390,10 @@ export default function App() {
               <input 
                 type="date" 
                 value={filterFromDate}
-                onChange={(e) => setFilterFromDate(e.target.value)}
+                onChange={(e) => {
+                  setFilterFromDate(e.target.value);
+                  setFilterMonth(0);
+                }}
                 className="px-2 py-1.5 border border-gray-300 rounded text-sm outline-none focus:border-blue-500"
               />
             </div>
@@ -1392,7 +1402,10 @@ export default function App() {
               <input 
                 type="date" 
                 value={filterToDate}
-                onChange={(e) => setFilterToDate(e.target.value)}
+                onChange={(e) => {
+                  setFilterToDate(e.target.value);
+                  setFilterMonth(0);
+                }}
                 className="px-2 py-1.5 border border-gray-300 rounded text-sm outline-none focus:border-blue-500"
               />
             </div>
