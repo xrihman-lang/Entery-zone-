@@ -80,7 +80,7 @@ interface Entry {
   id: string;
   date: string;
   customerName: string;
-  type: 'S' | 'O' | 'V' | 'K' | 'D' | 'SU' | 'OM' | 'Aadil' | 'Ashish';
+  type: string;
   rateType: 'MRP' | 'Normal' | 'Reddi';
   quantity: number;
   rate: number;
@@ -89,6 +89,19 @@ interface Entry {
   pendingAmount: number;
   createdAt?: any;
 }
+
+export interface LedgerTab {
+  id: string;
+  label: string;
+  typeCode: string;
+  colorClass: string;
+}
+
+const DEFAULT_CUSTOM_TABS: LedgerTab[] = [
+  { id: 'vrs', label: 'VRS People Only', typeCode: 'V', colorClass: 'purple' },
+  { id: 'aadil', label: 'Aadil', typeCode: 'Aadil', colorClass: 'pink' },
+  { id: 'ashish', label: 'Ashish', typeCode: 'Ashish', colorClass: 'teal' }
+];
 
 export default function App() {
   const localDate = useLocalDate();
@@ -100,10 +113,188 @@ export default function App() {
   const [dailyEntryCount, setDailyEntryCount] = useState(0);
   const [totalInvoiceCount, setTotalInvoiceCount] = useState(0);
   const [dailyInvoiceCount, setDailyInvoiceCount] = useState(0);
-  const [activeTab, setActiveTab] = useState<'standard' | 'vrs' | 'aadil' | 'ashish' | 'invoice' | 'history' | 'stock' | 'admin'>('standard');
+  const [activeTab, setActiveTab] = useState<string>('standard');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Custom Tabs State
+  const [customTabs, setCustomTabs] = useState<LedgerTab[]>([]);
+  const [tabsLoading, setTabsLoading] = useState(true);
+  const [isTabsManagerOpen, setIsTabsManagerOpen] = useState(false);
+  const [newTabLabel, setNewTabLabel] = useState('');
+  const [newTabTypeCode, setNewTabTypeCode] = useState('');
+  const [newTabColor, setNewTabColor] = useState('purple');
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
+  const [editingTabLabel, setEditingTabLabel] = useState('');
+  const [editingTabTypeCode, setEditingTabTypeCode] = useState('');
+  const [editingTabColor, setEditingTabColor] = useState('purple');
+
+  // Sync custom tabs from Firestore or localStorage
+  useEffect(() => {
+    let isMounted = true;
+    const loadTabs = async () => {
+      setTabsLoading(true);
+      if (!user) {
+        const saved = localStorage.getItem('gdx_custom_tabs');
+        if (saved) {
+          try {
+            if (isMounted) setCustomTabs(JSON.parse(saved));
+          } catch (e) {
+            if (isMounted) setCustomTabs(DEFAULT_CUSTOM_TABS);
+          }
+        } else {
+          if (isMounted) {
+            setCustomTabs(DEFAULT_CUSTOM_TABS);
+            localStorage.setItem('gdx_custom_tabs', JSON.stringify(DEFAULT_CUSTOM_TABS));
+          }
+        }
+        setTabsLoading(false);
+        return;
+      }
+
+      try {
+        const { db } = await getFirebase();
+        if (!db) {
+          if (isMounted) setCustomTabs(DEFAULT_CUSTOM_TABS);
+          setTabsLoading(false);
+          return;
+        }
+
+        const q = query(collection(db, 'ledger_tabs'), where('userId', '==', user.uid));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+          const batch = writeBatch(db);
+          DEFAULT_CUSTOM_TABS.forEach(tab => {
+            const docRef = doc(collection(db, 'ledger_tabs'));
+            batch.set(docRef, {
+              ...tab,
+              id: docRef.id,
+              userId: user.uid,
+              createdAt: serverTimestamp()
+            });
+          });
+          await batch.commit();
+          
+          const newSnapshot = await getDocs(q);
+          const loaded = newSnapshot.docs.map(d => ({
+            id: d.id,
+            label: d.data().label,
+            typeCode: d.data().typeCode,
+            colorClass: d.data().colorClass
+          } as LedgerTab));
+          if (isMounted) setCustomTabs(loaded);
+        } else {
+          const loaded = snapshot.docs.map(d => ({
+            id: d.id,
+            label: d.data().label,
+            typeCode: d.data().typeCode,
+            colorClass: d.data().colorClass
+          } as LedgerTab));
+          if (isMounted) setCustomTabs(loaded);
+        }
+      } catch (err) {
+        console.error("Error loading ledger tabs:", err);
+        if (isMounted) setCustomTabs(DEFAULT_CUSTOM_TABS);
+      } finally {
+        if (isMounted) setTabsLoading(false);
+      }
+    };
+
+    loadTabs();
+    return () => { isMounted = false; };
+  }, [user]);
+
+  const addCustomTab = async (newTab: Omit<LedgerTab, 'id'>) => {
+    const tabId = crypto.randomUUID();
+    const tabData: LedgerTab = {
+      ...newTab,
+      id: tabId
+    };
+
+    if (!user) {
+      const updated = [...customTabs, tabData];
+      setCustomTabs(updated);
+      localStorage.setItem('gdx_custom_tabs', JSON.stringify(updated));
+      showToast('Tab added locally!');
+      return;
+    }
+
+    try {
+      const { db } = await getFirebase();
+      if (!db) return;
+
+      await setDoc(doc(db, 'ledger_tabs', tabId), {
+        ...tabData,
+        userId: user.uid,
+        createdAt: serverTimestamp()
+      });
+      setCustomTabs(prev => [...prev, tabData]);
+      showToast('Tab added to Cloud!');
+    } catch (err) {
+      showToast('Failed to add tab', 'error');
+      console.error(err);
+    }
+  };
+
+  const updateCustomTab = async (tabId: string, updatedFields: Partial<Omit<LedgerTab, 'id'>>) => {
+    if (!user) {
+      const updated = customTabs.map(t => t.id === tabId ? { ...t, ...updatedFields } : t);
+      setCustomTabs(updated);
+      localStorage.setItem('gdx_custom_tabs', JSON.stringify(updated));
+      showToast('Tab updated locally!');
+      return;
+    }
+
+    try {
+      const { db } = await getFirebase();
+      if (!db) return;
+
+      await updateDoc(doc(db, 'ledger_tabs', tabId), {
+        ...updatedFields,
+        updatedAt: serverTimestamp()
+      });
+      setCustomTabs(prev => prev.map(t => t.id === tabId ? { ...t, ...updatedFields } : t));
+      showToast('Tab updated in Cloud!');
+    } catch (err) {
+      showToast('Failed to update tab', 'error');
+      console.error(err);
+    }
+  };
+
+  const deleteCustomTab = async (tabId: string) => {
+    if (customTabs.length <= 1) {
+      showToast('At least one tab must remain!', 'error');
+      return;
+    }
+
+    if (!user) {
+      const updated = customTabs.filter(t => t.id !== tabId);
+      setCustomTabs(updated);
+      localStorage.setItem('gdx_custom_tabs', JSON.stringify(updated));
+      showToast('Tab deleted locally!');
+      if (activeTab === tabId) {
+        setActiveTab('standard');
+      }
+      return;
+    }
+
+    try {
+      const { db } = await getFirebase();
+      if (!db) return;
+
+      await deleteDoc(doc(db, 'ledger_tabs', tabId));
+      setCustomTabs(prev => prev.filter(t => t.id !== tabId));
+      showToast('Tab deleted from Cloud!');
+      if (activeTab === tabId) {
+        setActiveTab('standard');
+      }
+    } catch (err) {
+      showToast('Failed to delete tab', 'error');
+      console.error(err);
+    }
+  };
+
   // Admin logic
   const [hasEnteredApp, setHasEnteredApp] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
@@ -260,7 +451,7 @@ export default function App() {
   const [formData, setFormData] = useState({
     date: getLocalDateString(),
     customerName: '',
-    type: 'S' as 'S' | 'O' | 'V' | 'K' | 'D' | 'SU' | 'OM' | 'Aadil' | 'Ashish',
+    type: 'S' as string,
     quantity: '1',
     totalAmount: '',
     receivedAmount: '',
@@ -270,10 +461,12 @@ export default function App() {
     if (!editingId) {
       setFormData(prev => {
         let newType = prev.type;
-        if (activeTab === 'vrs') newType = 'V';
-        else if (activeTab === 'aadil') newType = 'Aadil';
-        else if (activeTab === 'ashish') newType = 'Ashish';
-        else if (activeTab === 'standard' && ['V', 'Aadil', 'Ashish'].includes(prev.type)) newType = 'S';
+        const matchedTab = customTabs.find(t => t.id === activeTab);
+        if (matchedTab) {
+          newType = matchedTab.typeCode;
+        } else if (activeTab === 'standard' && customTabs.some(t => t.typeCode === prev.type)) {
+          newType = 'S';
+        }
         
         if (newType !== prev.type) {
           return { ...prev, type: newType };
@@ -281,7 +474,7 @@ export default function App() {
         return prev;
       });
     }
-  }, [activeTab, editingId]);
+  }, [activeTab, editingId, customTabs]);
 
   // Sync dates at midnight (auto-refresh)
   useEffect(() => {
@@ -473,10 +666,12 @@ export default function App() {
         setEntries(prev => [newEntry, ...prev]);
         showToast('Entry saved!');
         // Auto-switch tab
-        if (formData.type === 'V') setActiveTab('vrs');
-        else if (formData.type === 'Aadil') setActiveTab('aadil');
-        else if (formData.type === 'Ashish') setActiveTab('ashish');
-        else setActiveTab('standard');
+        const matchedTab = customTabs.find(t => t.typeCode === formData.type);
+        if (matchedTab) {
+          setActiveTab(matchedTab.id);
+        } else {
+          setActiveTab('standard');
+        }
       }
 
       setFormData({
@@ -553,10 +748,12 @@ export default function App() {
         
         showToast('Entry saved!');
         // Auto-switch tab
-        if (formData.type === 'V') setActiveTab('vrs');
-        else if (formData.type === 'Aadil') setActiveTab('aadil');
-        else if (formData.type === 'Ashish') setActiveTab('ashish');
-        else setActiveTab('standard');
+        const matchedTab = customTabs.find(t => t.typeCode === formData.type);
+        if (matchedTab) {
+          setActiveTab(matchedTab.id);
+        } else {
+          setActiveTab('standard');
+        }
       }
 
       setFormData({
@@ -711,14 +908,18 @@ export default function App() {
 
   // Filter Logic
   const filteredEntries = useMemo(() => {
+    const customTabCodes = customTabs.map(t => t.typeCode);
     return entries.filter(entry => {
       const entryDate = new Date(entry.date);
       let matchesTab = false;
-      if (activeTab === 'vrs') matchesTab = entry.type === 'V';
-      else if (activeTab === 'aadil') matchesTab = entry.type === 'Aadil';
-      else if (activeTab === 'ashish') matchesTab = entry.type === 'Ashish';
-      else if (activeTab === 'standard') matchesTab = !['V', 'Aadil', 'Ashish'].includes(entry.type);
-      else matchesTab = true;
+      const matchedTab = customTabs.find(t => t.id === activeTab);
+      if (matchedTab) {
+        matchesTab = entry.type === matchedTab.typeCode;
+      } else if (activeTab === 'standard') {
+        matchesTab = !customTabCodes.includes(entry.type);
+      } else {
+        matchesTab = true;
+      }
 
       const matchesSearch = entry.customerName.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesMonth = (!filterFromDate && !filterToDate && filterMonth !== 0) 
@@ -728,7 +929,7 @@ export default function App() {
       const matchesToDate = filterToDate ? entry.date <= filterToDate : true;
       return matchesTab && matchesSearch && matchesMonth && matchesFromDate && matchesToDate;
     });
-  }, [entries, activeTab, searchTerm, filterMonth, filterYear, filterFromDate, filterToDate]);
+  }, [entries, activeTab, searchTerm, filterMonth, filterYear, filterFromDate, filterToDate, customTabs]);
 
   const totals = useMemo(() => {
     return filteredEntries.reduce((acc, curr) => ({
@@ -1024,7 +1225,7 @@ export default function App() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-gray-100 border-b border-gray-200 print:hidden overflow-x-auto">
+        <div className="flex bg-gray-100 border-b border-gray-200 print:hidden overflow-x-auto items-center">
           <button
             onClick={() => setActiveTab('standard')}
             className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
@@ -1035,35 +1236,37 @@ export default function App() {
           >
             Standard Sheet
           </button>
+          {customTabs.map(tab => {
+            let activeColorClass = 'border-purple-600 text-purple-600';
+            if (tab.colorClass === 'pink') activeColorClass = 'border-pink-600 text-pink-600';
+            else if (tab.colorClass === 'teal') activeColorClass = 'border-teal-600 text-teal-600';
+            else if (tab.colorClass === 'blue') activeColorClass = 'border-blue-600 text-blue-600';
+            else if (tab.colorClass === 'indigo') activeColorClass = 'border-indigo-600 text-indigo-600';
+            else if (tab.colorClass === 'orange') activeColorClass = 'border-orange-600 text-orange-600';
+            else if (tab.colorClass === 'red') activeColorClass = 'border-red-600 text-red-600';
+            else if (tab.colorClass === 'green') activeColorClass = 'border-green-600 text-green-600';
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+                  activeTab === tab.id 
+                  ? `bg-white ${activeColorClass}` 
+                  : 'text-gray-500 hover:text-gray-700 border-transparent'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
           <button
-            onClick={() => setActiveTab('vrs')}
-            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-              activeTab === 'vrs' 
-              ? 'bg-white border-purple-600 text-purple-600' 
-              : 'text-gray-500 hover:text-gray-700 border-transparent'
-            }`}
+            onClick={() => setIsTabsManagerOpen(true)}
+            className="whitespace-nowrap px-4 py-3 font-bold text-xs uppercase tracking-wider text-blue-600 hover:text-blue-800 flex items-center gap-1 border-b-2 border-transparent hover:border-blue-200 transition-all bg-blue-50/50"
+            title="Edit, Add, or Remove Ledger Tabs"
           >
-            VRS People Only
-          </button>
-          <button
-            onClick={() => setActiveTab('aadil')}
-            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-              activeTab === 'aadil' 
-              ? 'bg-white border-pink-600 text-pink-600' 
-              : 'text-gray-500 hover:text-gray-700 border-transparent'
-            }`}
-          >
-            Aadil
-          </button>
-          <button
-            onClick={() => setActiveTab('ashish')}
-            className={`whitespace-nowrap px-6 py-3 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-              activeTab === 'ashish' 
-              ? 'bg-white border-teal-600 text-teal-600' 
-              : 'text-gray-500 hover:text-gray-700 border-transparent'
-            }`}
-          >
-            Ashish
+            <Pencil size={12} />
+            Manage Tabs
           </button>
           <button
             onClick={() => setActiveTab('invoice')}
@@ -1185,9 +1388,11 @@ export default function App() {
                       className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white text-xs font-bold"
                     >
                       <option value="S">S (Regular)</option>
-                      <option value="V">V (VRS)</option>
-                      <option value="Aadil">Aadil</option>
-                      <option value="Ashish">Ashish</option>
+                      {customTabs.map(tab => (
+                        <option key={tab.id} value={tab.typeCode}>
+                          {tab.typeCode} ({tab.label})
+                        </option>
+                      ))}
                       <option value="O">O (Others)</option>
                       <option value="K">K (Khalis)</option>
                     </select>
@@ -1480,19 +1685,31 @@ export default function App() {
                         </div>
                       </td>
                       <td className="p-3 border-x border-gray-100 text-sm text-center print:hidden">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          entry.type === 'S' ? 'bg-green-100 text-green-700' : 
-                          entry.type === 'O' ? 'bg-blue-100 text-blue-700' :
-                          entry.type === 'V' ? 'bg-purple-100 text-purple-700' :
-                          entry.type === 'K' ? 'bg-indigo-100 text-indigo-700' :
-                          entry.type === 'Aadil' ? 'bg-pink-100 text-pink-700' :
-                          entry.type === 'Ashish' ? 'bg-teal-100 text-teal-700' :
-                          entry.type === 'D' ? 'bg-orange-100 text-orange-700' :
-                          entry.type === 'SU' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {entry.type}
-                        </span>
+                        {(() => {
+                          const matchedTab = customTabs.find(t => t.typeCode === entry.type);
+                          let colorClasses = 'bg-gray-100 text-gray-700';
+                          if (entry.type === 'S') colorClasses = 'bg-green-100 text-green-700';
+                          else if (entry.type === 'O') colorClasses = 'bg-blue-100 text-blue-700';
+                          else if (entry.type === 'K') colorClasses = 'bg-indigo-100 text-indigo-700';
+                          else if (entry.type === 'D') colorClasses = 'bg-orange-100 text-orange-700';
+                          else if (entry.type === 'SU') colorClasses = 'bg-yellow-100 text-yellow-700';
+                          else if (matchedTab) {
+                            const color = matchedTab.colorClass;
+                            if (color === 'purple') colorClasses = 'bg-purple-100 text-purple-700';
+                            else if (color === 'pink') colorClasses = 'bg-pink-100 text-pink-700';
+                            else if (color === 'teal') colorClasses = 'bg-teal-100 text-teal-700';
+                            else if (color === 'blue') colorClasses = 'bg-blue-100 text-blue-700';
+                            else if (color === 'indigo') colorClasses = 'bg-indigo-100 text-indigo-700';
+                            else if (color === 'orange') colorClasses = 'bg-orange-100 text-orange-700';
+                            else if (color === 'red') colorClasses = 'bg-red-100 text-red-700';
+                            else if (color === 'green') colorClasses = 'bg-green-100 text-green-700';
+                          }
+                          return (
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${colorClasses}`}>
+                              {entry.type}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="p-3 border-x border-gray-100 text-sm text-right font-mono">₹{entry.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                       <td className="p-3 border-x border-gray-100 text-sm text-right font-mono text-green-600">₹{entry.receivedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
@@ -1836,6 +2053,241 @@ export default function App() {
             <div className="mt-8 pt-6 border-t border-gray-100 text-center">
               <p className="text-xs text-gray-400 font-medium tracking-wide">Supported by GDX Team.</p>
               <p className="text-xs text-gray-400 mt-0.5">We usually reply within 24 hours.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic Ledger Tabs Manager Modal */}
+      {isTabsManagerOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg border border-gray-100 flex flex-col max-h-[85vh]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-xl text-gray-900 flex items-center gap-2 uppercase tracking-tight">
+                <Pencil size={20} className="text-blue-600" /> Manage Ledger Tabs
+              </h3>
+              <button 
+                onClick={() => {
+                  setIsTabsManagerOpen(false);
+                  setEditingTabId(null);
+                }} 
+                className="text-gray-400 hover:text-gray-800 transition-colors p-1 hover:bg-gray-100 rounded-full"
+              >
+                <X size={20}/>
+              </button>
+            </div>
+            
+            <p className="text-xs text-gray-500 font-medium mb-4">
+              Aap naye Ledger Tabs (jaise VRS, Aadil, Ashish) yahan se add kar sakte hain, purane edit kar sakte hain, ya unhe delete kar sakte hain.
+            </p>
+
+            {/* List of current tabs */}
+            <div className="flex-1 overflow-y-auto mb-4 border border-gray-100 rounded-xl p-3 bg-gray-50 space-y-2">
+              <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Current Custom Tabs</span>
+              {customTabs.length === 0 ? (
+                <p className="text-xs text-gray-400 py-4 text-center font-medium">No custom tabs found. Add some below!</p>
+              ) : (
+                customTabs.map(tab => (
+                  <div key={tab.id} className="bg-white border border-gray-200 rounded-lg p-2.5 flex items-center justify-between gap-3 shadow-sm hover:border-gray-300 transition-all">
+                    {editingTabId === tab.id ? (
+                      <div className="flex-1 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] font-bold text-gray-400 uppercase">Label Name</label>
+                            <input 
+                              type="text" 
+                              value={editingTabLabel} 
+                              onChange={e => setEditingTabLabel(e.target.value)} 
+                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none font-bold"
+                              placeholder="e.g. VRS People"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-bold text-gray-400 uppercase">Type Code (stores in DB)</label>
+                            <input 
+                              type="text" 
+                              value={editingTabTypeCode} 
+                              onChange={e => setEditingTabTypeCode(e.target.value)} 
+                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none font-bold"
+                              placeholder="e.g. V"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase">Color:</span>
+                            <div className="flex gap-1">
+                              {['purple', 'pink', 'teal', 'blue', 'indigo', 'orange', 'red', 'green'].map(c => (
+                                <button
+                                  key={c}
+                                  type="button"
+                                  onClick={() => setEditingTabColor(c)}
+                                  className={`w-4 h-4 rounded-full border transition-all ${
+                                    c === 'purple' ? 'bg-purple-500' :
+                                    c === 'pink' ? 'bg-pink-500' :
+                                    c === 'teal' ? 'bg-teal-500' :
+                                    c === 'blue' ? 'bg-blue-500' :
+                                    c === 'indigo' ? 'bg-indigo-500' :
+                                    c === 'orange' ? 'bg-orange-500' :
+                                    c === 'red' ? 'bg-red-500' :
+                                    'bg-green-500'
+                                  } ${editingTabColor === c ? 'ring-2 ring-offset-1 ring-gray-950 scale-110' : 'opacity-80 border-transparent'}`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => {
+                                if (!editingTabLabel.trim() || !editingTabTypeCode.trim()) {
+                                  showToast('Please fill all fields', 'error');
+                                  return;
+                                }
+                                updateCustomTab(tab.id, {
+                                  label: editingTabLabel.trim(),
+                                  typeCode: editingTabTypeCode.trim(),
+                                  colorClass: editingTabColor
+                                });
+                                setEditingTabId(null);
+                              }}
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-black text-[9px] uppercase px-2 py-1 rounded transition-colors"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingTabId(null)}
+                              className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-black text-[9px] uppercase px-2 py-1 rounded transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-3 h-3 rounded-full ${
+                            tab.colorClass === 'purple' ? 'bg-purple-500' :
+                            tab.colorClass === 'pink' ? 'bg-pink-500' :
+                            tab.colorClass === 'teal' ? 'bg-teal-500' :
+                            tab.colorClass === 'blue' ? 'bg-blue-500' :
+                            tab.colorClass === 'indigo' ? 'bg-indigo-500' :
+                            tab.colorClass === 'orange' ? 'bg-orange-500' :
+                            tab.colorClass === 'red' ? 'bg-red-500' :
+                            'bg-green-500'
+                          }`} />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-gray-900">{tab.label}</span>
+                            <span className="text-[9px] font-mono text-gray-500 uppercase tracking-wider">CODE: {tab.typeCode}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingTabId(tab.id);
+                              setEditingTabLabel(tab.label);
+                              setEditingTabTypeCode(tab.typeCode);
+                              setEditingTabColor(tab.colorClass);
+                            }}
+                            className="p-1 text-blue-500 hover:bg-blue-50 rounded transition-all"
+                            title="Edit Tab"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to delete tab "${tab.label}"?`)) {
+                                deleteCustomTab(tab.id);
+                              }
+                            }}
+                            className="p-1 text-red-500 hover:bg-red-50 rounded transition-all"
+                            title="Delete Tab"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Add New Tab form */}
+            <div className="border-t border-gray-200 pt-4 space-y-3">
+              <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Add New Tab</span>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase">Tab Name (Label)</label>
+                  <input 
+                    type="text" 
+                    value={newTabLabel} 
+                    onChange={e => setNewTabLabel(e.target.value)} 
+                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 transition-shadow font-bold"
+                    placeholder="e.g. Ashish Only"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase">Type Code (stores in DB)</label>
+                  <input 
+                    type="text" 
+                    value={newTabTypeCode} 
+                    onChange={e => setNewTabTypeCode(e.target.value)} 
+                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 transition-shadow font-bold"
+                    placeholder="e.g. Ashish"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase">Color:</span>
+                  <div className="flex gap-1">
+                    {['purple', 'pink', 'teal', 'blue', 'indigo', 'orange', 'red', 'green'].map(c => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setNewTabColor(c)}
+                        className={`w-5 h-5 rounded-full border transition-all ${
+                          c === 'purple' ? 'bg-purple-500' :
+                          c === 'pink' ? 'bg-pink-500' :
+                          c === 'teal' ? 'bg-teal-500' :
+                          c === 'blue' ? 'bg-blue-500' :
+                          c === 'indigo' ? 'bg-indigo-500' :
+                          c === 'orange' ? 'bg-orange-500' :
+                          c === 'red' ? 'bg-red-500' :
+                          'bg-green-500'
+                        } ${newTabColor === c ? 'ring-2 ring-offset-2 ring-gray-950 scale-110' : 'opacity-80 border-transparent'}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newTabLabel.trim() || !newTabTypeCode.trim()) {
+                      showToast('Please enter both label and type code', 'error');
+                      return;
+                    }
+                    if (customTabs.some(t => t.typeCode === newTabTypeCode.trim())) {
+                      showToast('This Type Code already exists!', 'error');
+                      return;
+                    }
+                    addCustomTab({
+                      label: newTabLabel.trim(),
+                      typeCode: newTabTypeCode.trim(),
+                      colorClass: newTabColor
+                    });
+                    setNewTabLabel('');
+                    setNewTabTypeCode('');
+                    setNewTabColor('purple');
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-wider py-2.5 px-4 rounded-lg shadow transition-colors flex items-center gap-1"
+                >
+                  <Plus size={12} /> Add Tab
+                </button>
+              </div>
             </div>
           </div>
         </div>

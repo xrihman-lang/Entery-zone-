@@ -14,7 +14,26 @@ export async function getFirebase() {
     // Dynamic import to handle missing file at runtime gracefully
     const config = await import('../../firebase-applet-config.json').catch(() => null);
 
-    if (!config || config.apiKey === 'MISSING' || !config.apiKey) {
+    let firebaseConfig: any = null;
+    if (config && config.apiKey && config.apiKey !== 'MISSING') {
+      firebaseConfig = config.default || config;
+    } else {
+      // Fallback to environment variables
+      const env = (import.meta as any).env;
+      const envApiKey = env.VITE_FIREBASE_API_KEY || env.VITE_API_KEY;
+      if (envApiKey) {
+        firebaseConfig = {
+          apiKey: envApiKey,
+          authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || env.VITE_AUTH_DOMAIN,
+          projectId: env.VITE_FIREBASE_PROJECT_ID || env.VITE_PROJECT_ID,
+          storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || env.VITE_STORAGE_BUCKET,
+          messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || env.VITE_MESSAGING_SENDER_ID,
+          appId: env.VITE_FIREBASE_APP_ID || env.VITE_APP_ID,
+        };
+      }
+    }
+
+    if (!firebaseConfig || !firebaseConfig.apiKey) {
       console.warn('Firebase configuration is missing or incomplete. Persistence will only work locally.');
       return { app: null, db: null, auth: null, googleProvider: null };
     }
@@ -22,7 +41,7 @@ export async function getFirebase() {
     if (getApps().length > 0) {
       app = getApps()[0];
     } else {
-      app = initializeApp(config.default || config);
+      app = initializeApp(firebaseConfig);
     }
     
     if (!db) {

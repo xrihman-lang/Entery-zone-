@@ -39,9 +39,23 @@ service cloud.firestore {
       allow create: if isCreatingOwn();
       allow update: if isOwner() && isCreatingOwn();
     }
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'xrihman@gmail.com' || request.auth.token.email == 'mohdalikhan990x@gmail.com');
+    }
+
+    // Ledger Tabs collection
+    match /ledger_tabs/{tabId} {
+      allow read, delete: if isOwner();
+      allow create: if isCreatingOwn();
+      allow update: if isOwner() && isCreatingOwn();
+    }
+
     match /support_tickets/{ticketId} {
       allow create: if true; // Any user can submit feedback
-      allow read, update, delete: if false; 
+      allow read: if request.auth != null && (request.auth.token.email == 'xrihman@gmail.com' || request.auth.token.email == 'mohdalikhan990x@gmail.com');
+      allow update, delete: if false; 
     }
   }
 }
